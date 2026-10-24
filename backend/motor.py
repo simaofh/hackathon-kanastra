@@ -513,4 +513,71 @@ def processar_arquivo_lote(file_storage):
             if aprovado:
                 prazo_calc = max(0, prazo_dias)
                 taxa_mensal = regras["taxa_desconto_mensal"]
-                fator_desconto = taxa_mensal
+                fator_desconto = taxa_mensal * (prazo_calc / regras["base_dias"])
+                desconto_valor = valor_face * fator_desconto
+                valor_liq = max(0.0, valor_face - desconto_valor)
+
+                total_liquido += valor_liq
+                total_aprovados += 1
+                concentracao_lote_sacado[chave_concentracao_sacado] = (
+                    concentracao_lote_sacado.get(chave_concentracao_sacado, 0.0) + valor_face
+                )
+                concentracao_lote_cedente[cedente] = (
+                    concentracao_lote_cedente.get(cedente, 0.0) + valor_face
+                )
+
+                chaves_vistas_no_lote.add(chave_duplicidade)
+                ESTOQUE_IDS.add(chave_duplicidade)
+
+                aprovados_para_banco.append(
+                    (chave_duplicidade, id_nota, sacado_exibicao, valor_face_fmt, "APROVADO", "")
+                )
+
+                if len(itens_preview) < LIMITE_ITENS_RESPOSTA_JSON:
+                    itens_preview.append({
+                        "id": id_nota,
+                        "id_documento": id_nota,
+                        "chave_duplicidade": chave_duplicidade,
+                        "sacado": sacado_exibicao,
+                        "valorFace": valor_face_fmt,
+                        "valor_face": valor_face_fmt,
+                        "prazo": f"{prazo_dias} dias",
+                        "desconto": f"{_formatar_moeda(desconto_valor)} ({(fator_desconto * 100):.2f}%)",
+                        "valorLiquido": _formatar_moeda(valor_liq),
+                        "status": "APROVADO",
+                        "motivoRecusa": None,
+                        "motivo": ""
+                    })
+            else:
+                total_recusados += 1
+                if len(itens_preview) < LIMITE_ITENS_RESPOSTA_JSON:
+                    itens_preview.append({
+                        "id": id_nota,
+                        "id_documento": id_nota,
+                        "chave_duplicidade": chave_duplicidade,
+                        "sacado": sacado_exibicao,
+                        "valorFace": valor_face_fmt,
+                        "valor_face": valor_face_fmt,
+                        "prazo": f"{prazo_dias} dias",
+                        "desconto": "-",
+                        "valorLiquido": "-",
+                        "status": "RECUSADO",
+                        "motivoRecusa": motivo_recusa,
+                        "motivo": motivo_recusa
+                    })
+
+        resultado = {
+            "resumo": {
+                "totalNotas": total_notas,
+                "totalBruto": _formatar_moeda(total_bruto),
+                "totalLiquido": _formatar_moeda(total_liquido),
+                "totalRecusadas": total_recusados
+            },
+            "itens": itens_preview
+        }
+
+        return resultado, aprovados_para_banco, None
+
+    except Exception as e:
+        logging.error(f"EVENT=MOTOR_EXCECAO TIPO={type(e).__name__}")
+        return None, [], "Erro ao processar o arquivo CSV. Verifique a formatação do arquivo."
