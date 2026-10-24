@@ -1,1 +1,2 @@
-# hackathon-kanastra
+# Hackathon Kanastra - [Cúpula]
+
