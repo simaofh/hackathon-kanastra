@@ -20,7 +20,6 @@
           <span>FIDC ENGINE</span>
         </div>
       </div>
-
       <div class="nav-links">
         <button type="button" class="nav-link active" id="btnNavHome">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -35,7 +34,6 @@
           Validadores do Fundo
         </button>
       </div>
-
       <div class="nav-status">
         <span class="status-pill">
           <span class="status-dot"></span> Motor O(1) Ativo
@@ -45,7 +43,6 @@
   </nav>
 
   <div class="app-layout">
-    <!-- Cabeçalho Principal com Título Maior e em Destaque -->
     <header class="app-header">
       <div class="header-titles">
         <div class="badge-row">
@@ -55,7 +52,6 @@
         <h1 class="hero-title">Portal <span>Antecipe</span></h1>
         <p class="subtitle">Plataforma inteligente de cessão de crédito, cálculo de deságio comercial e validação de elegibilidade em tempo real</p>
       </div>
-
       <div class="header-controls">
         <button class="btn-cache" id="btnLimparCache" type="button" title="Limpa as notas de teste salvas na sessão para re-testar arquivos sem bloqueio de duplicidade">
           🗑️ Limpar Cache de Testes
@@ -69,15 +65,12 @@
       </div>
     </header>
 
-    <!-- SEÇÃO HOME: Hub de Acesso Rápido às Funções Específicas -->
     <section id="secaoHome" class="home-hub">
       <div class="hub-section-header">
         <h2>Central de Operações do Fundo</h2>
         <p>Selecione uma função específica abaixo para iniciar ou gerenciar sua operação</p>
       </div>
-
       <div class="hub-grid">
-        <!-- Card 1: Ir para Upload de Lote -->
         <div class="hub-card" id="cardIrUpload">
           <div class="hub-icon green">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -89,8 +82,6 @@
           </div>
           <div class="hub-action">Acessar Upload de Lote &rarr;</div>
         </div>
-
-        <!-- Card 2: Configurar Validadores -->
         <div class="hub-card" id="cardIrValidadores">
           <div class="hub-icon teal">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
@@ -102,8 +93,6 @@
           </div>
           <div class="hub-action">Configurar Parâmetros &rarr;</div>
         </div>
-
-        <!-- Card 3: Simulação Instantânea -->
         <div class="hub-card" id="cardIrDemo">
           <div class="hub-icon navy">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -115,8 +104,6 @@
           </div>
           <div class="hub-action">Executar Demonstração &rarr;</div>
         </div>
-
-        <!-- Card 4: Resetar Cache de Idempotência -->
         <div class="hub-card" id="cardIrResetCache">
           <div class="hub-icon rose">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -131,17 +118,11 @@
       </div>
     </section>
 
-    <!-- SEÇÃO OPERACIONAL: Upload, Indicadores e Tabela de Diagnóstico -->
     <main id="secaoOperacional">
-      <!-- Zona de Upload de Lote -->
       <section class="upload-section">
         <div class="upload-zone" id="dropZone">
           <div class="upload-icon-wrapper">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           </div>
           <div class="upload-text-group">
             <h3>Selecione ou arraste o lote de duplicatas (.csv)</h3>
@@ -152,10 +133,8 @@
         </div>
       </section>
 
-      <!-- Notificação Flutuante de Feedback (Cache / Regras) -->
       <div id="toastFeedback" class="toast-banner" style="display: none;"></div>
 
-      <!-- Cards de Métricas Financeiras -->
       <section class="metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
@@ -165,7 +144,6 @@
           <div class="metric-value" id="totalNotas">0</div>
           <div class="metric-detail">Total de títulos processados no lote</div>
         </div>
-
         <div class="metric-card">
           <div class="metric-header">
             <span class="metric-label">Valor Face Total</span>
@@ -174,7 +152,6 @@
           <div class="metric-value" id="totalBruto">R$ 0,00</div>
           <div class="metric-detail">Montante nominal solicitado</div>
         </div>
-
         <div class="metric-card card-approved">
           <div class="metric-header">
             <span class="metric-label">Líquido Aprovado</span>
@@ -183,7 +160,6 @@
           <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
           <div class="metric-detail">Valor líquido após deságio simples</div>
         </div>
-
         <div class="metric-card card-rejected">
           <div class="metric-header">
             <span class="metric-label">Notas Inelegíveis</span>
@@ -194,10 +170,8 @@
         </div>
       </section>
 
-      <!-- Banner de Amostragem (Escalabilidade) -->
       <div id="avisoAmostragem" class="sampling-banner" style="display: none;"></div>
 
-      <!-- Tabela de Simulação e Explicação de Recusas -->
       <section class="table-card">
         <div class="table-toolbar">
           <div class="toolbar-title">
@@ -205,6 +179,9 @@
             <span>Transparência nos critérios de aprovação, cálculo de taxa e motivo de recusa</span>
           </div>
           <div class="toolbar-filters">
+            <!-- Barra de Pesquisa Integrada -->
+            <input type="text" id="inputBuscaEmpresa" class="form-control search-input" placeholder="Pesquisar por empresa ou ID...">
+            <!-- Filtros de Status -->
             <button type="button" class="filter-chip active" data-status="TODOS">Todos</button>
             <button type="button" class="filter-chip" data-status="APROVADO">Aprovados</button>
             <button type="button" class="filter-chip" data-status="RECUSADO">Recusados</button>
@@ -238,7 +215,6 @@
     </main>
   </div>
 
-  <!-- Pop-up (Modal) de Configuração de Validadores -->
   <div id="modalConfig" class="modal-overlay" style="display: none;">
     <div class="modal-box">
       <div class="modal-header">
@@ -254,11 +230,7 @@
           <label for="selectValidador">1. Selecione o Validador / Regra do Regulamento:</label>
           <select id="selectValidador" class="form-control"></select>
         </div>
-
-        <div id="painelParametrosValidador" class="validator-config-card">
-          <!-- Carregado dinamicamente conforme o validador escolhido -->
-        </div>
-
+        <div id="painelParametrosValidador" class="validator-config-card"></div>
         <div class="pricing-config-box">
           <label for="inputTaxaMensal">Taxa de Desconto Simples Mensal (% a.m.):</label>
           <input type="number" id="inputTaxaMensal" class="form-control" step="0.05" min="0" value="2.0">
@@ -266,6 +238,7 @@
       </div>
 
       <div class="modal-footer">
+        <button type="button" id="btnResetarRegras" class="btn-danger-outline" style="margin-right: auto;">Restaurar Padrões</button>
         <button type="button" id="btnCancelarModal" class="btn-secondary">Cancelar</button>
         <button type="button" id="btnSalvarRegras" class="btn-demo">Salvar, Limpar Cache e Aplicar</button>
       </div>
