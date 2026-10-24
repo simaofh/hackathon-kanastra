@@ -3,114 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Antecipe | Simulação e Elegibilidade de Recebíveis</title>
+  <title>Portal Antecipe | Infraestrutura de Elegibilidade e Cessão FIDC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Barra de Navegação Superior Fixa -->
+  <nav class="top-navbar">
+    <div class="nav-container">
+      <div class="nav-brand" id="navLogoHome">
+        <div class="brand-mark">A</div>
+        <div class="brand-text">
+          <strong>ANTECIPE</strong>
+          <span>FIDC ENGINE</span>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <button type="button" class="nav-link active" id="btnNavHome">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Início (Home)
+        </button>
+        <button type="button" class="nav-link" id="btnNavSimulador">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Mesa de Antecipação
+        </button>
+        <button type="button" class="nav-link" id="btnNavRegras">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Validadores do Fundo
+        </button>
+      </div>
+
+      <div class="nav-status">
+        <span class="status-pill">
+          <span class="status-dot"></span> Motor O(1) Ativo
+        </span>
+      </div>
+    </div>
+  </nav>
+
   <div class="app-layout">
-    <!-- Cabeçalho Principal -->
+    <!-- Cabeçalho Principal com Título Maior e em Destaque -->
     <header class="app-header">
       <div class="header-titles">
-        <span class="header-tag">MERCADO DE CRÉDITO • FIDC</span>
-        <h1>Portal <span>Antecipe</span></h1>
-        <p class="subtitle">Plataforma de cessão e análise de elegibilidade de recebíveis em tempo real</p>
+        <div class="badge-row">
+          <span class="header-tag">INFRAESTRUTURA DE CRÉDITO • ANTECIPE FIDC</span>
+          <span class="header-ZeroDeploy">Zero-Deploy Rules Engine</span>
+        </div>
+        <h1 class="hero-title">Portal <span>Antecipe</span></h1>
+        <p class="subtitle">Plataforma inteligente de cessão de crédito, cálculo de deságio comercial e validação de elegibilidade em tempo real</p>
       </div>
+
       <div class="header-controls">
+        <button class="btn-cache" id="btnLimparCache" type="button" title="Limpa as notas de teste salvas na sessão para re-testar arquivos sem bloqueio de duplicidade">
+          🗑️ Limpar Cache de Testes
+        </button>
         <button class="btn-config" id="btnAbrirConfig" type="button">
           ⚙️ Configurar Regras do Fundo
         </button>
         <button class="btn-demo" id="btnDemo" type="button">
-          Simular Lote Demonstração
+          ⚡ Simular Lote Demonstração
         </button>
       </div>
     </header>
 
-    <!-- Zona de Upload de Lote -->
-    <section class="upload-section">
-      <div class="upload-zone" id="dropZone">
-        <div class="upload-icon-wrapper">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
+    <!-- SEÇÃO HOME: Hub de Acesso Rápido às Funções Específicas -->
+    <section id="secaoHome" class="home-hub">
+      <div class="hub-section-header">
+        <h2>Central de Operações do Fundo</h2>
+        <p>Selecione uma função específica abaixo para iniciar ou gerenciar sua operação</p>
+      </div>
+
+      <div class="hub-grid">
+        <!-- Card 1: Ir para Upload de Lote -->
+        <div class="hub-card" id="cardIrUpload">
+          <div class="hub-icon green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="hub-body">
+            <span class="hub-tag">OPERAÇÃO DE CRÉDITO</span>
+            <h3>Validar & Antecipar Lote (.CSV)</h3>
+            <p>Envie arquivos de até 500 mil duplicatas para validação instantânea contra o estoque histórico e cálculo de valor líquido.</p>
+          </div>
+          <div class="hub-action">Acessar Upload de Lote &rarr;</div>
         </div>
-        <div class="upload-text-group">
-          <h3>Selecione ou arraste o lote de duplicatas (.csv)</h3>
-          <p>Validação automática de risco, prazo, valor mínimo e checagem de duplicidade</p>
+
+        <!-- Card 2: Configurar Validadores -->
+        <div class="hub-card" id="cardIrValidadores">
+          <div class="hub-icon teal">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </div>
+          <div class="hub-body">
+            <span class="hub-tag">GESTÃO SEM DEPLOY</span>
+            <h3>Motor de Regras & Validadores</h3>
+            <p>Altere limites de valor mínimo, prazo máximo, concentração por sacado/cedente e taxa de desconto em tempo real.</p>
+          </div>
+          <div class="hub-action">Configurar Parâmetros &rarr;</div>
         </div>
-        <button type="button" class="btn-browse-file">Carregar Arquivo</button>
-        <input type="file" id="csvInput" accept=".csv" style="display: none;">
+
+        <!-- Card 3: Simulação Instantânea -->
+        <div class="hub-card" id="cardIrDemo">
+          <div class="hub-icon navy">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="hub-body">
+            <span class="hub-tag">AMBIENTE DE HOMOLOGAÇÃO</span>
+            <h3>Simular Lote de Demonstração</h3>
+            <p>Carregue imediatamente uma carteira exemplo com títulos aprovados e recusados para inspecionar a explicabilidade de UX.</p>
+          </div>
+          <div class="hub-action">Executar Demonstração &rarr;</div>
+        </div>
+
+        <!-- Card 4: Resetar Cache de Idempotência -->
+        <div class="hub-card" id="cardIrResetCache">
+          <div class="hub-icon rose">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </div>
+          <div class="hub-body">
+            <span class="hub-tag">CONTROLE DE IDEMPOTÊNCIA</span>
+            <h3>Limpar Cache de Testes</h3>
+            <p>Reinicie a memória da sessão e o banco local para testar o mesmo lote CSV repetidas vezes sob diferentes regras.</p>
+          </div>
+          <div class="hub-action">Limpar Histórico de Sessão &rarr;</div>
+        </div>
       </div>
     </section>
 
-    <!-- Cards de Métricas Financeiras -->
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">Notas Analisadas</span>
+    <!-- SEÇÃO OPERACIONAL: Upload, Indicadores e Tabela de Diagnóstico -->
+    <main id="secaoOperacional">
+      <!-- Zona de Upload de Lote -->
+      <section class="upload-section">
+        <div class="upload-zone" id="dropZone">
+          <div class="upload-icon-wrapper">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="upload-text-group">
+            <h3>Selecione ou arraste o lote de duplicatas (.csv)</h3>
+            <p>Validação automática de risco, prazo, valor mínimo, concentração e checagem de duplicidade em O(1)</p>
+          </div>
+          <button type="button" class="btn-browse-file">Selecionar Arquivo CSV</button>
+          <input type="file" id="csvInput" accept=".csv" style="display: none;">
         </div>
-        <div class="metric-value" id="totalNotas">0</div>
-        <div class="metric-detail">Total de títulos no lote</div>
-      </div>
+      </section>
 
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-label">Valor Face Total</span>
+      <!-- Notificação Flutuante de Feedback (Cache / Regras) -->
+      <div id="toastFeedback" class="toast-banner" style="display: none;"></div>
+
+      <!-- Cards de Métricas Financeiras -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Notas Analisadas</span>
+            <span class="metric-badge-neutral">Volume</span>
+          </div>
+          <div class="metric-value" id="totalNotas">0</div>
+          <div class="metric-detail">Total de títulos processados no lote</div>
         </div>
-        <div class="metric-value" id="totalBruto">R$ 0,00</div>
-        <div class="metric-detail">Volume nominal solicitado</div>
-      </div>
 
-      <div class="metric-card card-approved">
-        <div class="metric-header">
-          <span class="metric-label">Líquido Aprovado</span>
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Valor Face Total</span>
+            <span class="metric-badge-neutral">Bruto</span>
+          </div>
+          <div class="metric-value" id="totalBruto">R$ 0,00</div>
+          <div class="metric-detail">Montante nominal solicitado</div>
         </div>
-        <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
-        <div class="metric-detail">Desconto comercial simples aplicado</div>
-      </div>
 
-      <div class="metric-card card-rejected">
-        <div class="metric-header">
-          <span class="metric-label">Notas Inelegíveis</span>
+        <div class="metric-card card-approved">
+          <div class="metric-header">
+            <span class="metric-label">Líquido Aprovado</span>
+            <span class="metric-badge-ok">Liberado</span>
+          </div>
+          <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
+          <div class="metric-detail">Valor líquido após deságio simples</div>
         </div>
-        <div class="metric-value rejected" id="totalRecusadas">0</div>
-        <div class="metric-detail">Reprovadas pelas regras da carteira</div>
-      </div>
-    </section>
 
-    <!-- Banner de Amostragem (Escalabilidade) -->
-    <div id="avisoAmostragem" class="sampling-banner" style="display: none;"></div>
+        <div class="metric-card card-rejected">
+          <div class="metric-header">
+            <span class="metric-label">Notas Inelegíveis</span>
+            <span class="metric-badge-err">Risco / Barradas</span>
+          </div>
+          <div class="metric-value rejected" id="totalRecusadas">0</div>
+          <div class="metric-detail">Reprovadas pelas regras da carteira</div>
+        </div>
+      </section>
 
-    <!-- Tabela de Simulação e Explicação de Recusas -->
-    <section class="table-card">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>ID / Documento</th>
-              <th>Sacado</th>
-              <th>Valor de Face</th>
-              <th>Prazo</th>
-              <th>Taxa / Desconto</th>
-              <th>Valor Líquido</th>
-              <th>Status</th>
-              <th>Diagnóstico / Motivo da Recusa</th>
-            </tr>
-          </thead>
-          <tbody id="tabelaCorpo">
-            <tr>
-              <td colspan="8" class="empty-state">
-                Nenhum lote carregado. Envie um arquivo CSV ou clique no botão de demonstração.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <!-- Banner de Amostragem (Escalabilidade) -->
+      <div id="avisoAmostragem" class="sampling-banner" style="display: none;"></div>
+
+      <!-- Tabela de Simulação e Explicação de Recusas -->
+      <section class="table-card">
+        <div class="table-toolbar">
+          <div class="toolbar-title">
+            <h3>Diagnóstico Detalhado por Recebível</h3>
+            <span>Transparência nos critérios de aprovação, cálculo de taxa e motivo de recusa</span>
+          </div>
+          <div class="toolbar-filters">
+            <button type="button" class="filter-chip active" data-status="TODOS">Todos</button>
+            <button type="button" class="filter-chip" data-status="APROVADO">Aprovados</button>
+            <button type="button" class="filter-chip" data-status="RECUSADO">Recusados</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID / Documento</th>
+                <th>Sacado (Devedor)</th>
+                <th>Valor de Face</th>
+                <th>Prazo</th>
+                <th>Taxa / Desconto</th>
+                <th>Valor Líquido</th>
+                <th>Status</th>
+                <th>Diagnóstico / Motivo da Recusa</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaCorpo">
+              <tr>
+                <td colspan="8" class="empty-state">
+                  Nenhum lote carregado. Envie um arquivo CSV acima ou clique em "Simular Lote Demonstração".
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 
   <!-- Pop-up (Modal) de Configuração de Validadores -->
@@ -118,15 +243,15 @@
     <div class="modal-box">
       <div class="modal-header">
         <div>
-          <span class="header-tag">MOTOR DE REGRAS DINÂMICO</span>
-          <h2>Parâmetros de Elegibilidade</h2>
+          <span class="header-tag">MOTOR DE REGRAS DINÂMICO (SEM DEPLOY)</span>
+          <h2>Parâmetros de Elegibilidade do FIDC</h2>
         </div>
         <button type="button" id="btnFecharModal" class="btn-close-modal">&times;</button>
       </div>
 
       <div class="modal-body">
         <div class="form-group">
-          <label for="selectValidador">1. Selecione o Validador / Regra do Fundo:</label>
+          <label for="selectValidador">1. Selecione o Validador / Regra do Regulamento:</label>
           <select id="selectValidador" class="form-control"></select>
         </div>
 
@@ -142,7 +267,7 @@
 
       <div class="modal-footer">
         <button type="button" id="btnCancelarModal" class="btn-secondary">Cancelar</button>
-        <button type="button" id="btnSalvarRegras" class="btn-demo">Salvar e Aplicar Regras</button>
+        <button type="button" id="btnSalvarRegras" class="btn-demo">Salvar, Limpar Cache e Aplicar</button>
       </div>
     </div>
   </div>
