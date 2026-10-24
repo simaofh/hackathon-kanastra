@@ -34,6 +34,8 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 h1 {
@@ -188,7 +190,7 @@ tr:hover {
   padding: 6px 10px;
   border-radius: 6px;
   border-left: 3px solid var(--danger);
-  max-width: 400px;
+  max-width: 420px;
   line-height: 1.35;
 }
 
