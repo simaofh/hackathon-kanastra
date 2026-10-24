@@ -1,11 +1,14 @@
 /**
- * Portal Antecipe - Hackathon Kanastra
- * Integração Frontend com API em Python + Motor de Regras Dinâmico
+ * Portal Antecipe - Hackathon Kanastra 2026
+ * Integração Frontend com API em Python + Motor de Regras Dinâmico + Gestão de Cache
  */
 
+const BASE_API = window.location.protocol === "file:" ? "http://localhost:8000" : "";
+
 const CONFIG = {
-  API_URL: "http://localhost:8000/api/analisar-lote",
-  CONFIG_URL: "http://localhost:8000/api/configuracoes",
+  API_URL: `${BASE_API}/api/analisar-lote`,
+  CONFIG_URL: `${BASE_API}/api/configuracoes`,
+  CACHE_URL: `${BASE_API}/api/limpar-cache`,
   FILE_FIELD_NAME: "lote",
   MAX_DOM_ROWS: 500
 };
@@ -33,13 +36,31 @@ const LABELS_PARAMETROS = {
 };
 
 let ultimoArquivoCSV = null;
+let ultimoResultadoLote = null;
+let filtroStatusAtual = "TODOS";
 let dadosConfiguracaoCompleta = null;
 let indiceValidadorAtual = 0;
 
+// Elementos Principais
 const dropZone = document.getElementById("dropZone");
 const csvInput = document.getElementById("csvInput");
 const btnDemo = document.getElementById("btnDemo");
+const btnLimparCache = document.getElementById("btnLimparCache");
 const avisoAmostragem = document.getElementById("avisoAmostragem");
+const toastFeedback = document.getElementById("toastFeedback");
+
+// Elementos de Navegação Home / Funções Específicas
+const secaoHome = document.getElementById("secaoHome");
+const secaoOperacional = document.getElementById("secaoOperacional");
+const btnNavHome = document.getElementById("btnNavHome");
+const btnNavSimulador = document.getElementById("btnNavSimulador");
+const btnNavRegras = document.getElementById("btnNavRegras");
+const navLogoHome = document.getElementById("navLogoHome");
+
+const cardIrUpload = document.getElementById("cardIrUpload");
+const cardIrValidadores = document.getElementById("cardIrValidadores");
+const cardIrDemo = document.getElementById("cardIrDemo");
+const cardIrResetCache = document.getElementById("cardIrResetCache");
 
 // Elementos do Modal de Regras
 const modalConfig = document.getElementById("modalConfig");
@@ -51,6 +72,91 @@ const painelParametrosValidador = document.getElementById("painelParametrosValid
 const inputTaxaMensal = document.getElementById("inputTaxaMensal");
 const btnSalvarRegras = document.getElementById("btnSalvarRegras");
 
+function exibirToast(mensagem, isErro = false) {
+  if (!toastFeedback) return;
+  toastFeedback.style.display = "block";
+  toastFeedback.style.backgroundColor = isErro ? "var(--danger-soft)" : "var(--green-soft)";
+  toastFeedback.style.borderColor = isErro ? "var(--danger-border)" : "#6EE7B7";
+  toastFeedback.style.color = isErro ? "var(--danger-text)" : "var(--green-text)";
+  toastFeedback.textContent = mensagem;
+  setTimeout(() => {
+    toastFeedback.style.display = "none";
+  }, 4500);
+}
+
+/* =========================================================================
+ * NAVEGAÇÃO HOME E FUNÇÕES ESPECÍFICAS
+ * ========================================================================= */
+function irParaVisao(visao) {
+  if (!secaoHome || !secaoOperacional) return;
+  if (visao === "HOME") {
+    secaoHome.style.display = "block";
+    btnNavHome?.classList.add("active");
+    btnNavSimulador?.classList.remove("active");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else if (visao === "SIMULADOR") {
+    secaoHome.style.display = "none";
+    btnNavHome?.classList.remove("active");
+    btnNavSimulador?.classList.add("active");
+    secaoOperacional.scrollIntoView({ behavior: "smooth" });
+  }
+}
+
+btnNavHome?.addEventListener("click", () => irParaVisao("HOME"));
+navLogoHome?.addEventListener("click", () => irParaVisao("HOME"));
+btnNavSimulador?.addEventListener("click", () => irParaVisao("SIMULADOR"));
+btnNavRegras?.addEventListener("click", () => abrirModalValidadores());
+
+cardIrUpload?.addEventListener("click", () => {
+  irParaVisao("SIMULADOR");
+  csvInput?.click();
+});
+
+cardIrValidadores?.addEventListener("click", () => abrirModalValidadores());
+
+cardIrDemo?.addEventListener("click", () => {
+  irParaVisao("SIMULADOR");
+  carregarDemonstracao();
+});
+
+cardIrResetCache?.addEventListener("click", () => acionarLimpezaDeCache());
+
+/* =========================================================================
+ * LIMPEZA DE CACHE / RESET DE HISTÓRICO DE TESTES
+ * ========================================================================= */
+async function acionarLimpezaDeCache() {
+  try {
+    const resp = await fetch(CONFIG.CACHE_URL, { method: "POST" });
+    if (!resp.ok) throw new Error("Falha ao limpar cache no servidor.");
+    const dados = await resp.json();
+
+    ultimoResultadoLote = null;
+    document.getElementById("totalNotas").textContent = "0";
+    document.getElementById("totalBruto").textContent = "R$ 0,00";
+    document.getElementById("totalLiquido").textContent = "R$ 0,00";
+    document.getElementById("totalRecusadas").textContent = "0";
+    if (avisoAmostragem) avisoAmostragem.style.display = "none";
+
+    document.getElementById("tabelaCorpo").innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
+          ✓ Cache de testes limpo! Você já pode reenviar o lote CSV ou testar novas regras sem bloqueio de idempotência.
+        </td>
+      </tr>
+    `;
+    exibirToast(dados.mensagem || "Cache de testes limpo com sucesso!");
+  } catch (erro) {
+    exibirToast("Erro ao limpar cache: " + erro.message, true);
+  }
+}
+
+if (btnLimparCache) {
+  btnLimparCache.addEventListener("click", acionarLimpezaDeCache);
+}
+
+/* =========================================================================
+ * UPLOAD DE ARQUIVO CSV E DEMONSTRAÇÃO
+ * ========================================================================= */
 if (dropZone && csvInput) {
   dropZone.addEventListener("click", () => csvInput.click());
 
@@ -81,53 +187,65 @@ if (dropZone && csvInput) {
   });
 }
 
-if (btnDemo) {
-  btnDemo.addEventListener("click", () => {
-    const dadosExemplo = {
-      resumo: {
-        totalNotas: 3,
-        totalBruto: "R$ 48.000,00",
-        totalLiquido: "R$ 32.095,00",
-        totalRecusadas: 1
+function carregarDemonstracao() {
+  const dadosExemplo = {
+    resumo: {
+      totalNotas: 4,
+      totalBruto: "R$ 60.000,00",
+      totalLiquido: "R$ 32.160,00",
+      totalRecusadas: 2
+    },
+    itens: [
+      {
+        id: "NF-8921",
+        sacado: "Distribuidora Minas Ltda",
+        valorFace: "R$ 15.000,00",
+        prazo: "30 dias",
+        desconto: "R$ 300,00 (2.00%)",
+        valorLiquido: "R$ 14.700,00",
+        status: "APROVADO",
+        motivoRecusa: null
       },
-      itens: [
-        {
-          id: "NF-8921",
-          sacado: "Distribuidora Minas Ltda",
-          valorFace: "R$ 15.000,00",
-          prazo: "30 dias",
-          desconto: "R$ 300,00 (2.00%)",
-          valorLiquido: "R$ 14.700,00",
-          status: "APROVADO",
-          motivoRecusa: null
-        },
-        {
-          id: "NF-8922",
-          sacado: "Supermercados Triângulo S.A.",
-          valorFace: "R$ 18.000,00",
-          prazo: "45 dias",
-          desconto: "R$ 540,00 (3.00%)",
-          valorLiquido: "R$ 17.460,00",
-          status: "APROVADO",
-          motivoRecusa: null
-        },
-        {
-          id: "NF-8923",
-          sacado: "Comércio Varejista do Cerrado",
-          valorFace: "R$ 15.000,00",
-          prazo: "210 dias",
-          desconto: "-",
-          valorLiquido: "-",
-          status: "RECUSADO",
-          motivoRecusa: "Prazo de vencimento (210 dias) ultrapassa o limite máximo de 180 dias do FIDC."
-        }
-      ]
-    };
-    renderizarResultados(dadosExemplo);
-  });
+      {
+        id: "NF-8922",
+        sacado: "Supermercados Triângulo S.A.",
+        valorFace: "R$ 18.000,00",
+        prazo: "45 dias",
+        desconto: "R$ 540,00 (3.00%)",
+        valorLiquido: "R$ 17.460,00",
+        status: "APROVADO",
+        motivoRecusa: null
+      },
+      {
+        id: "NF-8923",
+        sacado: "Comércio Varejista do Cerrado",
+        valorFace: "R$ 15.000,00",
+        prazo: "210 dias",
+        desconto: "-",
+        valorLiquido: "-",
+        status: "RECUSADO",
+        motivoRecusa: "Prazo de vencimento (210 dias) ultrapassa o limite máximo de 180 dias do FIDC."
+      },
+      {
+        id: "NF-8924",
+        sacado: "Logística Brasil Central",
+        valorFace: "R$ 12.000,00",
+        prazo: "30 dias",
+        desconto: "-",
+        valorLiquido: "-",
+        status: "RECUSADO",
+        motivoRecusa: "CNPJ do sacado com situação cadastral 'INATIVA'. Situações aceitas: ATIVA."
+      }
+    ]
+  };
+  renderizarResultados(dadosExemplo);
 }
 
-async function enviarLoteParaBackend(arquivoCSV) {
+if (btnDemo) {
+  btnDemo.addEventListener("click", carregarDemonstracao);
+}
+
+async function enviarLoteParaBackend(arquivoCSV, limparCacheAntes = false) {
   if (!arquivoCSV.name.toLowerCase().endsWith(".csv")) {
     alert("Por favor, selecione um arquivo no formato .csv");
     return;
@@ -135,6 +253,9 @@ async function enviarLoteParaBackend(arquivoCSV) {
 
   const formData = new FormData();
   formData.append(CONFIG.FILE_FIELD_NAME, arquivoCSV);
+  if (limparCacheAntes) {
+    formData.append("limpar_cache", "true");
+  }
 
   mostrarCarregando(arquivoCSV.name);
 
@@ -151,19 +272,32 @@ async function enviarLoteParaBackend(arquivoCSV) {
 
     const dados = await resposta.json();
     renderizarResultados(dados);
-
   } catch (erro) {
     console.warn("Falha na chamada ao backend:", erro);
     document.getElementById("tabelaCorpo").innerHTML = `
       <tr>
         <td colspan="8" class="empty-state" style="color: var(--danger-primary);">
           <strong>Erro ao conectar com o Backend:</strong> ${erro.message}<br>
-          Verifique se o servidor Python está rodando na porta 8000 (<code>python app.py</code>).
+          Verifique se o servidor Python está rodando na porta 8000 (<code>python backend/app.py</code>).
         </td>
       </tr>
     `;
   }
 }
+
+/* =========================================================================
+ * RENDERIZAÇÃO DE RESULTADOS E FILTROS DA TABELA
+ * ========================================================================= */
+document.querySelectorAll(".filter-chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-chip").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    filtroStatusAtual = btn.getAttribute("data-status") || "TODOS";
+    if (ultimoResultadoLote) {
+      renderizarLinhasTabela(ultimoResultadoLote.itens);
+    }
+  });
+});
 
 function renderizarResultados(resultado) {
   if (!resultado || !resultado.resumo || !Array.isArray(resultado.itens)) {
@@ -171,13 +305,12 @@ function renderizarResultados(resultado) {
     return;
   }
 
+  ultimoResultadoLote = resultado;
+
   document.getElementById("totalNotas").textContent = resultado.resumo.totalNotas;
   document.getElementById("totalBruto").textContent = resultado.resumo.totalBruto;
   document.getElementById("totalLiquido").textContent = resultado.resumo.totalLiquido;
   document.getElementById("totalRecusadas").textContent = resultado.resumo.totalRecusadas;
-
-  const corpoTabela = document.getElementById("tabelaCorpo");
-  corpoTabela.innerHTML = "";
 
   if (avisoAmostragem) {
     if (resultado.resumo.totalNotas > resultado.itens.length) {
@@ -190,17 +323,29 @@ function renderizarResultados(resultado) {
     }
   }
 
-  if (resultado.itens.length === 0) {
+  renderizarLinhasTabela(resultado.itens);
+}
+
+function renderizarLinhasTabela(listaItens) {
+  const corpoTabela = document.getElementById("tabelaCorpo");
+  corpoTabela.innerHTML = "";
+
+  const itensFiltrados = listaItens.filter(item => {
+    if (filtroStatusAtual === "TODOS") return true;
+    return String(item.status).toUpperCase() === filtroStatusAtual;
+  });
+
+  if (itensFiltrados.length === 0) {
     corpoTabela.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-state">O arquivo enviado não contém linhas válidas.</td>
+        <td colspan="8" class="empty-state">Nenhum título encontrado para o filtro selecionado.</td>
       </tr>
     `;
     return;
   }
 
   const fragment = document.createDocumentFragment();
-  const itensExibidos = resultado.itens.slice(0, CONFIG.MAX_DOM_ROWS);
+  const itensExibidos = itensFiltrados.slice(0, CONFIG.MAX_DOM_ROWS);
 
   itensExibidos.forEach(item => {
     const tr = document.createElement("tr");
@@ -217,7 +362,7 @@ function renderizarResultados(resultado) {
       <td>${item.valorFace || "-"}</td>
       <td>${item.prazo || "-"}</td>
       <td>${item.desconto || "-"}</td>
-      <td style="color: ${ehAprovado ? 'var(--green-medium)' : 'inherit'}; font-weight: 600;">
+      <td style="color: ${ehAprovado ? 'var(--green-medium)' : 'inherit'}; font-weight: 700;">
         ${item.valorLiquido || "-"}
       </td>
       <td>
@@ -238,7 +383,7 @@ function mostrarCarregando(nomeArquivo) {
   const corpoTabela = document.getElementById("tabelaCorpo");
   corpoTabela.innerHTML = `
     <tr>
-      <td colspan="8" style="text-align: center; color: var(--green-primary); padding: 44px;">
+      <td colspan="8" class="empty-state" style="color: var(--green-primary); padding: 44px;">
         <p style="font-size: 1.05rem; font-weight: 700;">⏳ Processando lote "${nomeArquivo}"...</p>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;">
           Executando motor de regras dinâmico e checagem de duplicidade em O(1)...
@@ -251,36 +396,37 @@ function mostrarCarregando(nomeArquivo) {
 /* =========================================================================
  * LÓGICA DO POP-UP DE CONFIGURAÇÃO DE VALIDADORES (/api/configuracoes)
  * ========================================================================= */
+async function abrirModalValidadores() {
+  modalConfig.style.display = "flex";
+  painelParametrosValidador.innerHTML = "<p>Carregando regras do FIDC...</p>";
+
+  try {
+    const resp = await fetch(CONFIG.CONFIG_URL);
+    if (!resp.ok) throw new Error("Falha ao buscar configurações no servidor.");
+    dadosConfiguracaoCompleta = await resp.json();
+
+    if (!dadosConfiguracaoCompleta.validadores) {
+      dadosConfiguracaoCompleta = {
+        fundo: { nome: "ANTECIPE FIDC", cnpj: "92.234.400/0001-80" },
+        validadores: Array.isArray(dadosConfiguracaoCompleta) ? dadosConfiguracaoCompleta : [],
+        precificacao: { metodo: "DESCONTO_SIMPLES", taxa_mensal_percentual: 2.0, base_dias: 30 }
+      };
+    }
+
+    if (dadosConfiguracaoCompleta.precificacao && inputTaxaMensal) {
+      inputTaxaMensal.value = dadosConfiguracaoCompleta.precificacao.taxa_mensal_percentual ?? 2.0;
+    }
+
+    popularDropdownValidadores();
+  } catch (erro) {
+    painelParametrosValidador.innerHTML = `
+      <p style="color: var(--danger-primary);">Erro ao carregar regras: ${erro.message}</p>
+    `;
+  }
+}
 
 if (btnAbrirConfig) {
-  btnAbrirConfig.addEventListener("click", async () => {
-    modalConfig.style.display = "flex";
-    painelParametrosValidador.innerHTML = "<p>Carregando regras do FIDC...</p>";
-
-    try {
-      const resp = await fetch(CONFIG.CONFIG_URL);
-      if (!resp.ok) throw new Error("Falha ao buscar configurações no servidor.");
-      dadosConfiguracaoCompleta = await resp.json();
-
-      if (!dadosConfiguracaoCompleta.validadores) {
-        dadosConfiguracaoCompleta = {
-          fundo: { nome: "ANTECIPE FIDC", cnpj: "92.234.400/0001-80" },
-          validadores: Array.isArray(dadosConfiguracaoCompleta) ? dadosConfiguracaoCompleta : [],
-          precificacao: { metodo: "DESCONTO_SIMPLES", taxa_mensal_percentual: 2.0, base_dias: 30 }
-        };
-      }
-
-      if (dadosConfiguracaoCompleta.precificacao && inputTaxaMensal) {
-        inputTaxaMensal.value = dadosConfiguracaoCompleta.precificacao.taxa_mensal_percentual ?? 2.0;
-      }
-
-      popularDropdownValidadores();
-    } catch (erro) {
-      painelParametrosValidador.innerHTML = `
-        <p style="color: var(--danger-primary);">Erro ao carregar regras: ${erro.message}</p>
-      `;
-    }
-  });
+  btnAbrirConfig.addEventListener("click", abrirModalValidadores);
 }
 
 function fecharModalConfig() {
@@ -443,18 +589,17 @@ if (btnSalvarRegras) {
       }
 
       fecharModalConfig();
+      exibirToast("Regras atualizadas e cache de sessão reiniciado com sucesso!");
 
-      // Se já houver um arquivo CSV carregado na sessão, reprocessa automaticamente com as novas regras
       if (ultimoArquivoCSV) {
-        enviarLoteParaBackend(ultimoArquivoCSV);
-      } else {
-        alert("Regras atualizadas com sucesso no validadores_antecipe_3.json!");
+        enviarLoteParaBackend(ultimoArquivoCSV, true);
       }
     } catch (erro) {
-      alert("Erro ao salvar regras: " + erro.message);
+      exibirToast("Erro ao salvar regras: " + erro.message, true);
     } finally {
       btnSalvarRegras.textContent = textoOriginal;
       btnSalvarRegras.disabled = false;
     }
   });
 }
+// === FIM DO ARQUIVO ===
