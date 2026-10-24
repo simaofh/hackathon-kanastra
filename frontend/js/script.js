@@ -1,13 +1,9 @@
-/**
- * Portal Antecipe - Hackathon Kanastra 2026
- * Integração Frontend com API em Python + Motor de Regras Dinâmico + Gestão de Cache
- */
-
 const BASE_API = window.location.protocol === "file:" ? "http://localhost:8000" : "";
 
 const CONFIG = {
   API_URL: `${BASE_API}/api/analisar-lote`,
   CONFIG_URL: `${BASE_API}/api/configuracoes`,
+  RESET_CONFIG_URL: `${BASE_API}/api/configuracoes/reset`, // Rota de reset
   CACHE_URL: `${BASE_API}/api/limpar-cache`,
   FILE_FIELD_NAME: "lote",
   MAX_DOM_ROWS: 500
@@ -30,9 +26,9 @@ const LABELS_PARAMETROS = {
   prazo_maximo_dias: "Prazo Máximo Permitido (em dias)",
   prazo_minimo_dias: "Prazo Mínimo Permitido (em dias)",
   percentual_maximo: "Limite Máximo de Concentração (%)",
-  agrupamento: "Critério de Agrupamento (ex: RAIZ_CNPJ ou CNPJ_COMPLETO)",
-  situacoes_aceitas: "Situações Cadastrais Aceitas (separadas por vírgula)",
-  tipos_aceitos: "Tipos de Recebíveis Aceitos (separados por vírgula)"
+  agrupamento: "Critério de Agrupamento (ex: RAIZ_CNPJ)",
+  situacoes_aceitas: "Situações Cadastrais Aceitas",
+  tipos_aceitos: "Tipos de Recebíveis Aceitos"
 };
 
 let ultimoArquivoCSV = null;
@@ -41,15 +37,14 @@ let filtroStatusAtual = "TODOS";
 let dadosConfiguracaoCompleta = null;
 let indiceValidadorAtual = 0;
 
-// Elementos Principais
 const dropZone = document.getElementById("dropZone");
 const csvInput = document.getElementById("csvInput");
 const btnDemo = document.getElementById("btnDemo");
 const btnLimparCache = document.getElementById("btnLimparCache");
 const avisoAmostragem = document.getElementById("avisoAmostragem");
 const toastFeedback = document.getElementById("toastFeedback");
+const inputBuscaEmpresa = document.getElementById("inputBuscaEmpresa");
 
-// Elementos de Navegação Home / Funções Específicas
 const secaoHome = document.getElementById("secaoHome");
 const secaoOperacional = document.getElementById("secaoOperacional");
 const btnNavHome = document.getElementById("btnNavHome");
@@ -62,7 +57,6 @@ const cardIrValidadores = document.getElementById("cardIrValidadores");
 const cardIrDemo = document.getElementById("cardIrDemo");
 const cardIrResetCache = document.getElementById("cardIrResetCache");
 
-// Elementos do Modal de Regras
 const modalConfig = document.getElementById("modalConfig");
 const btnAbrirConfig = document.getElementById("btnAbrirConfig");
 const btnFecharModal = document.getElementById("btnFecharModal");
@@ -71,6 +65,7 @@ const selectValidador = document.getElementById("selectValidador");
 const painelParametrosValidador = document.getElementById("painelParametrosValidador");
 const inputTaxaMensal = document.getElementById("inputTaxaMensal");
 const btnSalvarRegras = document.getElementById("btnSalvarRegras");
+const btnResetarRegras = document.getElementById("btnResetarRegras");
 
 function exibirToast(mensagem, isErro = false) {
   if (!toastFeedback) return;
@@ -84,9 +79,6 @@ function exibirToast(mensagem, isErro = false) {
   }, 4500);
 }
 
-/* =========================================================================
- * NAVEGAÇÃO HOME E FUNÇÕES ESPECÍFICAS
- * ========================================================================= */
 function irParaVisao(visao) {
   if (!secaoHome || !secaoOperacional) return;
   if (visao === "HOME") {
@@ -111,19 +103,13 @@ cardIrUpload?.addEventListener("click", () => {
   irParaVisao("SIMULADOR");
   csvInput?.click();
 });
-
 cardIrValidadores?.addEventListener("click", () => abrirModalValidadores());
-
 cardIrDemo?.addEventListener("click", () => {
   irParaVisao("SIMULADOR");
   carregarDemonstracao();
 });
-
 cardIrResetCache?.addEventListener("click", () => acionarLimpezaDeCache());
 
-/* =========================================================================
- * LIMPEZA DE CACHE / RESET DE HISTÓRICO DE TESTES
- * ========================================================================= */
 async function acionarLimpezaDeCache() {
   try {
     const resp = await fetch(CONFIG.CACHE_URL, { method: "POST" });
@@ -154,21 +140,15 @@ if (btnLimparCache) {
   btnLimparCache.addEventListener("click", acionarLimpezaDeCache);
 }
 
-/* =========================================================================
- * UPLOAD DE ARQUIVO CSV E DEMONSTRAÇÃO
- * ========================================================================= */
 if (dropZone && csvInput) {
   dropZone.addEventListener("click", () => csvInput.click());
-
   dropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
     dropZone.style.borderColor = "var(--green-medium)";
   });
-
   dropZone.addEventListener("dragleave", () => {
     dropZone.style.borderColor = "var(--border-card)";
   });
-
   dropZone.addEventListener("drop", (e) => {
     e.preventDefault();
     dropZone.style.borderColor = "var(--border-card)";
@@ -177,7 +157,6 @@ if (dropZone && csvInput) {
       enviarLoteParaBackend(ultimoArquivoCSV);
     }
   });
-
   csvInput.addEventListener("change", (e) => {
     if (e.target.files.length > 0) {
       ultimoArquivoCSV = e.target.files[0];
@@ -196,46 +175,10 @@ function carregarDemonstracao() {
       totalRecusadas: 2
     },
     itens: [
-      {
-        id: "NF-8921",
-        sacado: "Distribuidora Minas Ltda",
-        valorFace: "R$ 15.000,00",
-        prazo: "30 dias",
-        desconto: "R$ 300,00 (2.00%)",
-        valorLiquido: "R$ 14.700,00",
-        status: "APROVADO",
-        motivoRecusa: null
-      },
-      {
-        id: "NF-8922",
-        sacado: "Supermercados Triângulo S.A.",
-        valorFace: "R$ 18.000,00",
-        prazo: "45 dias",
-        desconto: "R$ 540,00 (3.00%)",
-        valorLiquido: "R$ 17.460,00",
-        status: "APROVADO",
-        motivoRecusa: null
-      },
-      {
-        id: "NF-8923",
-        sacado: "Comércio Varejista do Cerrado",
-        valorFace: "R$ 15.000,00",
-        prazo: "210 dias",
-        desconto: "-",
-        valorLiquido: "-",
-        status: "RECUSADO",
-        motivoRecusa: "Prazo de vencimento (210 dias) ultrapassa o limite máximo de 180 dias do FIDC."
-      },
-      {
-        id: "NF-8924",
-        sacado: "Logística Brasil Central",
-        valorFace: "R$ 12.000,00",
-        prazo: "30 dias",
-        desconto: "-",
-        valorLiquido: "-",
-        status: "RECUSADO",
-        motivoRecusa: "CNPJ do sacado com situação cadastral 'INATIVA'. Situações aceitas: ATIVA."
-      }
+      { id: "NF-8921", sacado: "Distribuidora Minas Ltda", valorFace: "R$ 15.000,00", prazo: "30 dias", desconto: "R$ 300,00 (2.00%)", valorLiquido: "R$ 14.700,00", status: "APROVADO", motivoRecusa: null },
+      { id: "NF-8922", sacado: "Supermercados Triângulo S.A.", valorFace: "R$ 18.000,00", prazo: "45 dias", desconto: "R$ 540,00 (3.00%)", valorLiquido: "R$ 17.460,00", status: "APROVADO", motivoRecusa: null },
+      { id: "NF-8923", sacado: "Comércio Varejista do Cerrado", valorFace: "R$ 15.000,00", prazo: "210 dias", desconto: "-", valorLiquido: "-", status: "RECUSADO", motivoRecusa: "Prazo de vencimento (210 dias) ultrapassa o limite máximo de 180 dias do FIDC." },
+      { id: "NF-8924", sacado: "Logística Brasil Central", valorFace: "R$ 12.000,00", prazo: "30 dias", desconto: "-", valorLiquido: "-", status: "RECUSADO", motivoRecusa: "CNPJ do sacado com situação cadastral 'INATIVA'." }
     ]
   };
   renderizarResultados(dadosExemplo);
@@ -250,7 +193,6 @@ async function enviarLoteParaBackend(arquivoCSV, limparCacheAntes = false) {
     alert("Por favor, selecione um arquivo no formato .csv");
     return;
   }
-
   const formData = new FormData();
   formData.append(CONFIG.FILE_FIELD_NAME, arquivoCSV);
   if (limparCacheAntes) {
@@ -260,16 +202,11 @@ async function enviarLoteParaBackend(arquivoCSV, limparCacheAntes = false) {
   mostrarCarregando(arquivoCSV.name);
 
   try {
-    const resposta = await fetch(CONFIG.API_URL, {
-      method: "POST",
-      body: formData
-    });
-
+    const resposta = await fetch(CONFIG.API_URL, { method: "POST", body: formData });
     if (!resposta.ok) {
       const errJson = await resposta.json().catch(() => ({}));
       throw new Error(errJson.erro || `Erro HTTP ${resposta.status}`);
     }
-
     const dados = await resposta.json();
     renderizarResultados(dados);
   } catch (erro) {
@@ -278,16 +215,14 @@ async function enviarLoteParaBackend(arquivoCSV, limparCacheAntes = false) {
       <tr>
         <td colspan="8" class="empty-state" style="color: var(--danger-primary);">
           <strong>Erro ao conectar com o Backend:</strong> ${erro.message}<br>
-          Verifique se o servidor Python está rodando na porta 8000 (<code>python backend/app.py</code>).
+          Verifique se o servidor Python está rodando na porta 8000.
         </td>
       </tr>
     `;
   }
 }
 
-/* =========================================================================
- * RENDERIZAÇÃO DE RESULTADOS E FILTROS DA TABELA
- * ========================================================================= */
+// ==== FILTROS E PESQUISA ====
 document.querySelectorAll(".filter-chip").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".filter-chip").forEach(b => b.classList.remove("active"));
@@ -299,14 +234,17 @@ document.querySelectorAll(".filter-chip").forEach(btn => {
   });
 });
 
+if(inputBuscaEmpresa) {
+  inputBuscaEmpresa.addEventListener("input", () => {
+    if (ultimoResultadoLote) {
+      renderizarLinhasTabela(ultimoResultadoLote.itens);
+    }
+  });
+}
+
 function renderizarResultados(resultado) {
-  if (!resultado || !resultado.resumo || !Array.isArray(resultado.itens)) {
-    console.error("Formato JSON recebido incompatível:", resultado);
-    return;
-  }
-
+  if (!resultado || !resultado.resumo || !Array.isArray(resultado.itens)) return;
   ultimoResultadoLote = resultado;
-
   document.getElementById("totalNotas").textContent = resultado.resumo.totalNotas;
   document.getElementById("totalBruto").textContent = resultado.resumo.totalBruto;
   document.getElementById("totalLiquido").textContent = resultado.resumo.totalLiquido;
@@ -315,14 +253,11 @@ function renderizarResultados(resultado) {
   if (avisoAmostragem) {
     if (resultado.resumo.totalNotas > resultado.itens.length) {
       avisoAmostragem.style.display = "block";
-      avisoAmostragem.innerHTML = `
-        <strong>✓ Processamento em Lote Concluído:</strong> Todas as <strong>${resultado.resumo.totalNotas}</strong> duplicatas foram validadas e contabilizadas nos indicadores acima. Exibindo amostra das primeiras <strong>${resultado.itens.length}</strong> notas na tabela para preservar a performance da tela.
-      `;
+      avisoAmostragem.innerHTML = `<strong>✓ Processamento em Lote Concluído:</strong> Todas as ${resultado.resumo.totalNotas} duplicatas foram validadas. Exibindo amostra de ${resultado.itens.length} notas.`;
     } else {
       avisoAmostragem.style.display = "none";
     }
   }
-
   renderizarLinhasTabela(resultado.itens);
 }
 
@@ -330,15 +265,23 @@ function renderizarLinhasTabela(listaItens) {
   const corpoTabela = document.getElementById("tabelaCorpo");
   corpoTabela.innerHTML = "";
 
+  const termoBusca = (inputBuscaEmpresa?.value || "").toLowerCase().trim();
+
   const itensFiltrados = listaItens.filter(item => {
-    if (filtroStatusAtual === "TODOS") return true;
-    return String(item.status).toUpperCase() === filtroStatusAtual;
+    // Regra de Filtro de Status
+    const statusMatch = filtroStatusAtual === "TODOS" || String(item.status).toUpperCase() === filtroStatusAtual;
+    // Regra de Filtro de Pesquisa de Texto (Sacado ou ID)
+    const nomeSacado = (item.sacado || "").toLowerCase();
+    const idDocumento = (item.id || "").toLowerCase();
+    const buscaMatch = termoBusca === "" || nomeSacado.includes(termoBusca) || idDocumento.includes(termoBusca);
+    
+    return statusMatch && buscaMatch;
   });
 
   if (itensFiltrados.length === 0) {
     corpoTabela.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-state">Nenhum título encontrado para o filtro selecionado.</td>
+        <td colspan="8" class="empty-state">Nenhum título encontrado para o filtro e pesquisa selecionados.</td>
       </tr>
     `;
     return;
@@ -351,10 +294,9 @@ function renderizarLinhasTabela(listaItens) {
     const tr = document.createElement("tr");
     const ehAprovado = String(item.status).toUpperCase() === "APROVADO";
     const statusBadge = ehAprovado ? "badge-success" : "badge-error";
-
     const diagnosticoVisual = ehAprovado
       ? '<span class="approved-text">✓ Elegível para antecipação imediata</span>'
-      : `<div class="reason-box">${item.motivoRecusa || item.motivo || "Critério de elegibilidade não atendido."}</div>`;
+      : `<div class="reason-box">${item.motivoRecusa || item.motivo || "Critério não atendido."}</div>`;
 
     tr.innerHTML = `
       <td><strong>${item.id || "-"}</strong></td>
@@ -365,90 +307,64 @@ function renderizarLinhasTabela(listaItens) {
       <td style="color: ${ehAprovado ? 'var(--green-medium)' : 'inherit'}; font-weight: 700;">
         ${item.valorLiquido || "-"}
       </td>
-      <td>
-        <span class="badge ${statusBadge}">
-          ${item.status}
-        </span>
-      </td>
+      <td><span class="badge ${statusBadge}">${item.status}</span></td>
       <td>${diagnosticoVisual}</td>
     `;
     fragment.appendChild(tr);
   });
-
   corpoTabela.appendChild(fragment);
 }
 
 function mostrarCarregando(nomeArquivo) {
   if (avisoAmostragem) avisoAmostragem.style.display = "none";
-  const corpoTabela = document.getElementById("tabelaCorpo");
-  corpoTabela.innerHTML = `
+  document.getElementById("tabelaCorpo").innerHTML = `
     <tr>
       <td colspan="8" class="empty-state" style="color: var(--green-primary); padding: 44px;">
         <p style="font-size: 1.05rem; font-weight: 700;">⏳ Processando lote "${nomeArquivo}"...</p>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;">
-          Executando motor de regras dinâmico e checagem de duplicidade em O(1)...
-        </p>
       </td>
     </tr>
   `;
 }
 
-/* =========================================================================
- * LÓGICA DO POP-UP DE CONFIGURAÇÃO DE VALIDADORES (/api/configuracoes)
- * ========================================================================= */
+// ==== CONFIGURAÇÕES E MODAL ====
 async function abrirModalValidadores() {
   modalConfig.style.display = "flex";
   painelParametrosValidador.innerHTML = "<p>Carregando regras do FIDC...</p>";
-
   try {
     const resp = await fetch(CONFIG.CONFIG_URL);
-    if (!resp.ok) throw new Error("Falha ao buscar configurações no servidor.");
+    if (!resp.ok) throw new Error("Falha ao buscar configurações.");
     dadosConfiguracaoCompleta = await resp.json();
 
     if (!dadosConfiguracaoCompleta.validadores) {
       dadosConfiguracaoCompleta = {
-        fundo: { nome: "ANTECIPE FIDC", cnpj: "92.234.400/0001-80" },
-        validadores: Array.isArray(dadosConfiguracaoCompleta) ? dadosConfiguracaoCompleta : [],
-        precificacao: { metodo: "DESCONTO_SIMPLES", taxa_mensal_percentual: 2.0, base_dias: 30 }
+        fundo: { nome: "ANTECIPE", cnpj: "" },
+        validadores: [],
+        precificacao: { taxa_mensal_percentual: 2.0 }
       };
     }
-
     if (dadosConfiguracaoCompleta.precificacao && inputTaxaMensal) {
       inputTaxaMensal.value = dadosConfiguracaoCompleta.precificacao.taxa_mensal_percentual ?? 2.0;
     }
-
     popularDropdownValidadores();
   } catch (erro) {
-    painelParametrosValidador.innerHTML = `
-      <p style="color: var(--danger-primary);">Erro ao carregar regras: ${erro.message}</p>
-    `;
+    painelParametrosValidador.innerHTML = `<p style="color: var(--danger-primary);">Erro ao carregar regras: ${erro.message}</p>`;
   }
 }
 
-if (btnAbrirConfig) {
-  btnAbrirConfig.addEventListener("click", abrirModalValidadores);
-}
-
-function fecharModalConfig() {
-  if (modalConfig) modalConfig.style.display = "none";
-}
-
+if (btnAbrirConfig) btnAbrirConfig.addEventListener("click", abrirModalValidadores);
+function fecharModalConfig() { if (modalConfig) modalConfig.style.display = "none"; }
 if (btnFecharModal) btnFecharModal.addEventListener("click", fecharModalConfig);
 if (btnCancelarModal) btnCancelarModal.addEventListener("click", fecharModalConfig);
 
 function popularDropdownValidadores() {
   selectValidador.innerHTML = "";
   const lista = dadosConfiguracaoCompleta.validadores || [];
-
   lista.forEach((val, idx) => {
     const opt = document.createElement("option");
     opt.value = idx;
-    const statusIcon = val.ativo ? "🟢" : "⚪";
-    const nomeAmigavel = NOMES_AMIGAVEIS_VALIDADORES[val.codigo] || val.codigo;
-    opt.textContent = `${statusIcon} ${nomeAmigavel}`;
+    opt.textContent = `${val.ativo ? "🟢" : "⚪"} ${NOMES_AMIGAVEIS_VALIDADORES[val.codigo] || val.codigo}`;
     selectValidador.appendChild(opt);
   });
-
   indiceValidadorAtual = 0;
   selectValidador.value = "0";
   renderizarFormularioValidador(0);
@@ -465,7 +381,6 @@ if (selectValidador) {
 function renderizarFormularioValidador(idx) {
   const validador = dadosConfiguracaoCompleta.validadores[idx];
   if (!validador) return;
-
   const parametros = validador.parametros || {};
   const chavesParametros = Object.keys(parametros);
 
@@ -480,41 +395,31 @@ function renderizarFormularioValidador(idx) {
   `;
 
   if (chavesParametros.length === 0) {
-    html += `
-      <p style="font-size: 0.85rem; color: var(--text-muted);">
-        Este validador não possui limites numéricos adicionais. Basta ativá-lo ou desativá-lo na chave acima.
-      </p>
-    `;
+    html += `<p style="font-size: 0.85rem; color: var(--text-muted);">Validador sem limites numéricos. Use o checkbox acima para ativar/desativar.</p>`;
   } else {
     chavesParametros.forEach(chave => {
       const valorAtual = parametros[chave];
-      const labelAmigavel = LABELS_PARAMETROS[chave] || chave.replace(/_/g, " ");
+      const labelAmigavel = LABELS_PARAMETROS[chave] || chave;
 
       if (Array.isArray(valorAtual)) {
         html += `
           <div class="form-group">
             <label>${labelAmigavel}</label>
-            <input type="text" class="form-control input-parametro-dinamico"
-              data-key="${chave}" data-type="array"
-              value="${valorAtual.join(", ")}">
+            <input type="text" class="form-control input-parametro-dinamico" data-key="${chave}" data-type="array" value="${valorAtual.join(", ")}">
           </div>
         `;
       } else if (typeof valorAtual === "number") {
         html += `
           <div class="form-group">
             <label>${labelAmigavel}</label>
-            <input type="number" step="any" class="form-control input-parametro-dinamico"
-              data-key="${chave}" data-type="number"
-              value="${valorAtual}">
+            <input type="number" step="any" class="form-control input-parametro-dinamico" data-key="${chave}" data-type="number" value="${valorAtual}">
           </div>
         `;
       } else {
         html += `
           <div class="form-group">
             <label>${labelAmigavel}</label>
-            <input type="text" class="form-control input-parametro-dinamico"
-              data-key="${chave}" data-type="string"
-              value="${valorAtual}">
+            <input type="text" class="form-control input-parametro-dinamico" data-key="${chave}" data-type="string" value="${valorAtual}">
           </div>
         `;
       }
@@ -529,8 +434,7 @@ function renderizarFormularioValidador(idx) {
       validador.ativo = chkAtivo.checked;
       const opt = selectValidador.options[idx];
       if (opt) {
-        const nomeAmigavel = NOMES_AMIGAVEIS_VALIDADORES[validador.codigo] || validador.codigo;
-        opt.textContent = `${validador.ativo ? "🟢" : "⚪"} ${nomeAmigavel}`;
+        opt.textContent = `${validador.ativo ? "🟢" : "⚪"} ${NOMES_AMIGAVEIS_VALIDADORES[validador.codigo] || validador.codigo}`;
       }
     });
   }
@@ -541,9 +445,7 @@ function guardarEdicoesNoObjetoEmMemoria(idx) {
   const validador = dadosConfiguracaoCompleta.validadores[idx];
 
   const chkAtivo = document.getElementById("chkValidadorAtivo");
-  if (chkAtivo) {
-    validador.ativo = chkAtivo.checked;
-  }
+  if (chkAtivo) validador.ativo = chkAtivo.checked;
 
   if (!validador.parametros) validador.parametros = {};
 
@@ -554,10 +456,7 @@ function guardarEdicoesNoObjetoEmMemoria(idx) {
     if (tipo === "number") {
       validador.parametros[chave] = parseFloat(input.value) || 0;
     } else if (tipo === "array") {
-      validador.parametros[chave] = input.value
-        .split(",")
-        .map(s => s.trim())
-        .filter(Boolean);
+      validador.parametros[chave] = input.value.split(",").map(s => s.trim()).filter(Boolean);
     } else {
       validador.parametros[chave] = input.value.trim();
     }
@@ -568,10 +467,10 @@ function guardarEdicoesNoObjetoEmMemoria(idx) {
   }
 }
 
+// Botão Salvar
 if (btnSalvarRegras) {
   btnSalvarRegras.addEventListener("click", async () => {
     guardarEdicoesNoObjetoEmMemoria(indiceValidadorAtual);
-
     const textoOriginal = btnSalvarRegras.textContent;
     btnSalvarRegras.textContent = "Salvando...";
     btnSalvarRegras.disabled = true;
@@ -582,24 +481,40 @@ if (btnSalvarRegras) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dadosConfiguracaoCompleta)
       });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.erro || "Falha ao salvar configurações.");
-      }
-
+      if (!resp.ok) throw new Error("Falha ao salvar configurações.");
       fecharModalConfig();
       exibirToast("Regras atualizadas e cache de sessão reiniciado com sucesso!");
-
-      if (ultimoArquivoCSV) {
-        enviarLoteParaBackend(ultimoArquivoCSV, true);
-      }
+      if (ultimoArquivoCSV) enviarLoteParaBackend(ultimoArquivoCSV, true);
     } catch (erro) {
-      exibirToast("Erro ao salvar regras: " + erro.message, true);
+      exibirToast(erro.message, true);
     } finally {
       btnSalvarRegras.textContent = textoOriginal;
       btnSalvarRegras.disabled = false;
     }
   });
 }
-// === FIM DO ARQUIVO ===
+
+// NOVO: Botão Resetar Regras de Fábrica
+if (btnResetarRegras) {
+  btnResetarRegras.addEventListener("click", async () => {
+    if (!confirm("Tem certeza que deseja restaurar as regras de fábrica? As customizações atuais serão perdidas.")) return;
+    
+    const textoOriginal = btnResetarRegras.textContent;
+    btnResetarRegras.textContent = "Restaurando...";
+    btnResetarRegras.disabled = true;
+
+    try {
+      const resp = await fetch(CONFIG.RESET_CONFIG_URL, { method: "POST" });
+      if (!resp.ok) throw new Error("Erro ao restaurar configurações.");
+
+      exibirToast("Regras restauradas para os padrões de fábrica com sucesso!");
+      await abrirModalValidadores(); // Atualiza a tela com as regras limpas
+      if (ultimoArquivoCSV) enviarLoteParaBackend(ultimoArquivoCSV, true); // Roda o lote novamente
+    } catch (erro) {
+      exibirToast(erro.message, true);
+    } finally {
+      btnResetarRegras.textContent = textoOriginal;
+      btnResetarRegras.disabled = false;
+    }
+  });
+}
