@@ -12,7 +12,7 @@
 4. Coloque o CSV em `data/`
 5. Instale as dependências: `pip install -r backend/requirements.txt`
 6. Inicie o back-end: `python backend/main.py`
-7. Abra o front-end: acesse http://localhost:8000 (ajustar conforme o projeto)
+7. Abra o front-end: acesse http://127.0.0.1:5000
 
 ## Estrutura do projeto
 - `backend/`: processamento em Python
