@@ -8,7 +8,12 @@ from banco import inicializar_banco, salvar_lote_no_banco
 # Inicializa o banco ANTES de importar o motor para garantir a tabela pronta
 inicializar_banco()
 
-from motor import processar_arquivo_lote, ler_arquivo_regras_bruto, salvar_arquivo_regras_bruto
+from motor import (
+    processar_arquivo_lote,
+    ler_arquivo_regras_bruto,
+    salvar_arquivo_regras_bruto,
+    resetar_cache_sessao,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -25,7 +30,7 @@ def _localizar_diretorio_arquivo(caminho_relativo):
     candidatos = [
         (PASTA_FRONTEND, caminho_relativo),
         (PASTA_FRONTEND, nome_base),
-        ( os.path.join(BASE_DIR, "frontend"), caminho_relativo),
+        (os.path.join(BASE_DIR, "frontend"), caminho_relativo),
         (BASE_DIR, caminho_relativo),
         (BASE_DIR, nome_base),
     ]
@@ -60,6 +65,10 @@ def analisar_lote():
     inicio = perf_counter()
     logging.info("EVENT=LOTE_RECEBIDO STATUS=INICIANDO")
 
+    # Se o usuário enviou o parâmetro limpar_cache=true, reseta antes de processar
+    if request.form.get("limpar_cache") == "true":
+        resetar_cache_sessao()
+
     resultado, aprovados_para_banco, erro = processar_arquivo_lote(arquivo)
     if erro:
         logging.warning("EVENT=LOTE_REJEITADO MOTIVO=ERRO_DE_PROCESSAMENTO")
@@ -86,7 +95,7 @@ def obter_configuracoes():
 @app.route("/api/configuracoes", methods=["POST", "OPTIONS"])
 @app.route("/api/validadores", methods=["POST", "OPTIONS"])
 def atualizar_configuracoes():
-    """Recebe as novas regras do frontend e guarda no ficheiro JSON."""
+    """Recebe as novas regras do frontend, guarda no JSON e reseta o cache de testes."""
     if request.method == "OPTIONS":
         return "", 204
 
@@ -99,6 +108,18 @@ def atualizar_configuracoes():
     if sucesso:
         return jsonify({"mensagem": mensagem}), 200
     return jsonify({"erro": mensagem}), 500
+
+
+@app.route("/api/limpar-cache", methods=["POST", "OPTIONS"])
+def limpar_cache():
+    """Rota dedicada para limpar o histórico de testes da sessão sem perder o estoque original."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    resetar_cache_sessao()
+    return jsonify({
+        "mensagem": "Cache de sessão limpo com sucesso! Você já pode testar seus lotes novamente."
+    }), 200
 
 
 if __name__ == "__main__":
