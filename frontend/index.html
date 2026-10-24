@@ -1,63 +1,76 @@
-<div class="container">
-  <header>
-    <div>
-      <h1>Portal <span>Antecipe</span></h1>
-      <p class="subtitle">Simulação e Validação de Elegibilidade FIDC</p>
-    </div>
-    <div>
-      <button class="btn-demo" id="btnDemo">⚡ Simular com Notas Exemplo</button>
-    </div>
-  </header>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Antecipe - Simulação FIDC</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Portal <span>Antecipe</span></h1>
+        <p class="subtitle">Simulação e Validação de Elegibilidade FIDC</p>
+      </div>
+      <div>
+        <button class="btn-demo" id="btnDemo" type="button">⚡ Simular com Notas Exemplo</button>
+      </div>
+    </header>
 
-  <!-- Upload de Lote -->
-  <div class="upload-zone" id="dropZone">
-    <h3>Upload do Lote de Recebíveis (.csv)</h3>
-    <p>Clique aqui para selecionar seu arquivo ou teste pelo botão acima</p>
-    <input type="file" id="csvInput" accept=".csv" style="display: none;">
+    <!-- Upload de Lote -->
+    <div class="upload-zone" id="dropZone">
+      <h3>Upload do Lote de Recebíveis (.csv)</h3>
+      <p>Clique aqui ou arraste seu arquivo .csv para validar ou teste pelo botão acima</p>
+      <input type="file" id="csvInput" accept=".csv" style="display: none;">
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Notas Analisadas</div>
+        <div class="metric-value" id="totalNotas">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Valor Solicitado (Bruto)</div>
+        <div class="metric-value" id="totalBruto">R$ 0,00</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Valor Líquido Aprovado</div>
+        <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Notas Recusadas</div>
+        <div class="metric-value rejected" id="totalRecusadas">0</div>
+      </div>
+    </div>
+
+    <!-- Tabela de Simulação e Explicação de Recusas -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID / Nota</th>
+            <th>Sacado</th>
+            <th>Valor de Face</th>
+            <th>Prazo</th>
+            <th>Taxa / Desconto</th>
+            <th>Valor Líquido</th>
+            <th>Status</th>
+            <th>Diagnóstico / Motivo da Recusa</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaCorpo">
+          <tr>
+            <td colspan="8" class="empty-state">
+              Nenhum lote carregado. Envie um arquivo CSV ou clique no botão de simulação.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Cards de Resumo -->
-  <div class="metrics-grid">
-    <div class="metric-card">
-      <div class="metric-title">Notas Analisadas</div>
-      <div class="metric-value" id="totalNotas">0</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Valor Solicitado (Bruto)</div>
-      <div class="metric-value" id="totalBruto">R$ 0,00</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Valor Líquido Aprovado</div>
-      <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-title">Notas Recusadas</div>
-      <div class="metric-value rejected" id="totalRecusadas">0</div>
-    </div>
-  </div>
-
-  <!-- Tabela de Simulação e Explicação de Recusas -->
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>ID / Nota</th>
-          <th>Sacado</th>
-          <th>Valor de Face</th>
-          <th>Prazo</th>
-          <th>Taxa / Desconto</th>
-          <th>Valor Líquido</th>
-          <th>Status</th>
-          <th>Diagnóstico / Motivo da Recusa</th>
-        </tr>
-      </thead>
-      <tbody id="tabelaCorpo">
-        <tr>
-          <td colspan="8" class="empty-state">
-            Nenhum lote carregado. Envie um arquivo CSV ou clique no botão de simulação.
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+  <script src="script.js"></script>
+</body>
+</html>
