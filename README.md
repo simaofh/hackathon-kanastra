@@ -1,11 +1,12 @@
 # Hackathon Kanastra - Cúpula
 
+
 ## Pré-requisitos
 - Python 3.10 ou superior
 - Navegador (Chrome, Firefox...)
 
 ## Como subir a aplicação
-1. Clone o repositório
+1. Clone o repositório git clone https://github.com/simaofh/hackathon-kanastra.git
 2. Entre na pasta: `cd hackathon-kanastra`
 3. Copie `.env.example` para `.env`
 4. Coloque o CSV em `data/`
