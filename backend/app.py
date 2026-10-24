@@ -1,17 +1,18 @@
 import logging
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from motor import processar_arquivo_lote
 from banco import inicializar_banco, salvar_lote_no_banco
+
+# Inicializa o banco ANTES de importar o motor para garantir a tabela pronta
+inicializar_banco()
+
+from motor import processar_arquivo_lote
 
 # Configuração de Logs Estruturados sem vazar dados sensíveis do CSV (15 pontos do edital)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 app = Flask(__name__, static_folder='.')
 CORS(app, resources={r"/*": {"origins": "*"}})
-
-# Inicializa o banco de dados SQLite ao subir a aplicação
-inicializar_banco()
 
 
 @app.route('/', methods=['GET'])
@@ -43,13 +44,13 @@ def analisar_lote():
         return jsonify({"erro": "Nenhum arquivo foi selecionado."}), 400
 
     # 1. Processa o CSV através das regras do motor
-    resultado_processamento, registos_banco, erro = processar_arquivo_lote(arquivo_lote)
+    resultado_processamento, aprovados_para_banco, erro = processar_arquivo_lote(arquivo_lote)
     if erro:
         logging.error("EVENT=PROCESSAMENTO_ERRO STATUS=FALHA")
         return jsonify({"erro": erro}), 400
 
-    # 2. Persiste o histórico processado no banco em lote (alta performance)
-    salvar_lote_no_banco(registos_banco)
+    # 2. Persiste os títulos aprovados no banco em lote (Bulk Insert)
+    salvar_lote_no_banco(aprovados_para_banco)
 
     logging.info(
         f"EVENT=PROCESSAMENTO_CONCLUIDO STATUS=SUCESSO "
