@@ -6,11 +6,15 @@ import os
 import re
 from datetime import datetime
 from functools import lru_cache
-from banco import carregar_estoque_banco
+from banco import carregar_estoque_banco, limpar_banco
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Conjuntos em memória para busca O(1) de duplicidade e concentração contra o estoque
+# Base imutável do CSV histórico (estoque_antecipe.csv) vs Estoque ativo da sessão
+ESTOQUE_CSV_ORIGINAL = set()
+CONCENTRACAO_CSV_ORIGINAL = {}
+CONCENTRACAO_CEDENTE_CSV_ORIGINAL = {}
+
 ESTOQUE_IDS = set()
 CONCENTRACAO_HISTORICA = {}
 CONCENTRACAO_CEDENTE_HISTORICA = {}
@@ -21,17 +25,20 @@ CEDENTE_PADRAO = "00000000000191"
 
 
 def _obter_caminho_regras():
-    """Localiza o arquivo validadores_antecipe_3.json onde quer que esteja."""
-    candidatos = [
-        os.path.join(BASE_DIR, "validadores_antecipe_3.json"),
-        os.path.join(BASE_DIR, "data", "validadores_antecipe_3.json"),
-        os.path.join(os.path.dirname(BASE_DIR), "data", "validadores_antecipe_3.json"),
-        os.path.join(os.path.dirname(BASE_DIR), "validadores_antecipe_3.json"),
-        "validadores_antecipe_3.json",
+    """Localiza o arquivo de regras (validadores_antecipe_3.json, validadores.json ou config)."""
+    nomes_arquivos = ["validadores_antecipe_3.json", "validadores.json", "config.json", "config"]
+    pastas = [
+        BASE_DIR,
+        os.path.join(BASE_DIR, "data"),
+        os.path.join(os.path.dirname(BASE_DIR), "data"),
+        os.path.dirname(BASE_DIR),
+        "."
     ]
-    for c in candidatos:
-        if os.path.exists(c):
-            return c
+    for pasta in pastas:
+        for nome in nomes_arquivos:
+            caminho = os.path.join(pasta, nome)
+            if os.path.isfile(caminho):
+                return caminho
     return os.path.join(BASE_DIR, "validadores_antecipe_3.json")
 
 
@@ -102,7 +109,10 @@ def _calcular_prazo_dias(linha):
 def carregar_estoque_em_memoria():
     """Carrega o estoque_antecipe.csv e os registros do SQLite para garantir idempotência em O(1)."""
     global VALOR_TOTAL_ESTOQUE
-    ESTOQUE_IDS.update(carregar_estoque_banco())
+    ESTOQUE_CSV_ORIGINAL.clear()
+    CONCENTRACAO_CSV_ORIGINAL.clear()
+    CONCENTRACAO_CEDENTE_CSV_ORIGINAL.clear()
+    VALOR_TOTAL_ESTOQUE = 0.0
 
     caminhos_possiveis = [
         os.path.join(BASE_DIR, "estoque_antecipe.csv"),
@@ -140,7 +150,7 @@ def carregar_estoque_em_memoria():
                         if id_nota:
                             id_limpo = str(id_nota).strip()
                             cedente_limpo = str(cedente).strip()
-                            ESTOQUE_IDS.add(f"{cedente_limpo}_{id_limpo}")
+                            ESTOQUE_CSV_ORIGINAL.add(f"{cedente_limpo}_{id_limpo}")
 
                         sacado = (
                             row.get("doc_sacado")
@@ -156,25 +166,54 @@ def carregar_estoque_em_memoria():
                             VALOR_TOTAL_ESTOQUE += valor
                             if sacado:
                                 chave_sacado = str(sacado).strip()
-                                CONCENTRACAO_HISTORICA[chave_sacado] = (
-                                    CONCENTRACAO_HISTORICA.get(chave_sacado, 0.0) + valor
+                                CONCENTRACAO_CSV_ORIGINAL[chave_sacado] = (
+                                    CONCENTRACAO_CSV_ORIGINAL.get(chave_sacado, 0.0) + valor
                                 )
                                 dig_sacado = _apenas_digitos(chave_sacado)
                                 if len(dig_sacado) >= 8:
                                     raiz = dig_sacado[:8]
-                                    CONCENTRACAO_HISTORICA[raiz] = (
-                                        CONCENTRACAO_HISTORICA.get(raiz, 0.0) + valor
+                                    CONCENTRACAO_CSV_ORIGINAL[raiz] = (
+                                        CONCENTRACAO_CSV_ORIGINAL.get(raiz, 0.0) + valor
                                     )
                             if cedente:
                                 chave_ced = str(cedente).strip()
-                                CONCENTRACAO_CEDENTE_HISTORICA[chave_ced] = (
-                                    CONCENTRACAO_CEDENTE_HISTORICA.get(chave_ced, 0.0) + valor
+                                CONCENTRACAO_CEDENTE_CSV_ORIGINAL[chave_ced] = (
+                                    CONCENTRACAO_CEDENTE_CSV_ORIGINAL.get(chave_ced, 0.0) + valor
                                 )
 
-                logging.info(f"EVENT=ESTOQUE_CSV_CARREGADO STATUS=SUCESSO CHAVES_TOTAIS={len(ESTOQUE_IDS)}")
-                return
+                logging.info(f"EVENT=ESTOQUE_CSV_CARREGADO STATUS=SUCESSO CHAVES_ORIGINAIS={len(ESTOQUE_CSV_ORIGINAL)}")
+                break
             except Exception as e:
                 logging.error(f"EVENT=ESTOQUE_CSV_ERRO TIPO={type(e).__name__}")
+
+    # Sincroniza o estado ativo com a base histórica + banco SQLite
+    ESTOQUE_IDS.clear()
+    ESTOQUE_IDS.update(ESTOQUE_CSV_ORIGINAL)
+    ESTOQUE_IDS.update(carregar_estoque_banco())
+
+    CONCENTRACAO_HISTORICA.clear()
+    CONCENTRACAO_HISTORICA.update(CONCENTRACAO_CSV_ORIGINAL)
+
+    CONCENTRACAO_CEDENTE_HISTORICA.clear()
+    CONCENTRACAO_CEDENTE_HISTORICA.update(CONCENTRACAO_CEDENTE_CSV_ORIGINAL)
+
+
+def resetar_cache_sessao():
+    """
+    Limpa os lotes de teste do banco SQLite e restaura a memória RAM
+    apenas para o estoque original (estoque_antecipe.csv) em O(1).
+    """
+    limpar_banco()
+    ESTOQUE_IDS.clear()
+    ESTOQUE_IDS.update(ESTOQUE_CSV_ORIGINAL)
+
+    CONCENTRACAO_HISTORICA.clear()
+    CONCENTRACAO_HISTORICA.update(CONCENTRACAO_CSV_ORIGINAL)
+
+    CONCENTRACAO_CEDENTE_HISTORICA.clear()
+    CONCENTRACAO_CEDENTE_HISTORICA.update(CONCENTRACAO_CEDENTE_CSV_ORIGINAL)
+    logging.info(f"EVENT=CACHE_SESSAO_RESETADO STATUS=SUCESSO CHAVES_ATIVAS={len(ESTOQUE_IDS)}")
+    return True
 
 
 def ler_arquivo_regras_bruto():
@@ -209,13 +248,18 @@ def ler_arquivo_regras_bruto():
 
 
 def salvar_arquivo_regras_bruto(novos_dados):
-    """Guarda o JSON editado pelo utilizador no ficheiro físico sem precisar de redeploy."""
+    """
+    Guarda o JSON editado pelo utilizador no ficheiro físico sem precisar de redeploy
+    e limpa automaticamente o cache de sessão para permitir re-testar o mesmo lote!
+    """
     caminho = _obter_caminho_regras()
     try:
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(novos_dados, f, indent=2, ensure_ascii=False)
+        # Limpa o cache de sessão ao atualizar regras para que o re-teste do lote funcione sem falso positivo de duplicidade
+        resetar_cache_sessao()
         logging.info("EVENT=REGRAS_ATUALIZADAS STATUS=SUCESSO")
-        return True, "Regras atualizadas com sucesso."
+        return True, "Regras atualizadas e cache de sessão reiniciado com sucesso."
     except Exception as e:
         logging.error(f"EVENT=REGRAS_ATUALIZACAO_ERRO TIPO={type(e).__name__}")
         return False, "Erro ao guardar regras."
@@ -248,7 +292,7 @@ def carregar_regras_validadores():
         "base_dias": 30.0,
     }
 
-    precificacao = dados.get("precificacao", {})
+    precificacao = dados.get("precificacao", {}) if isinstance(dados, dict) else {}
     if "taxa_mensal_percentual" in precificacao:
         regras["taxa_desconto_mensal"] = _converter_float(precificacao["taxa_mensal_percentual"], 2.0) / 100.0
     if "base_dias" in precificacao:
