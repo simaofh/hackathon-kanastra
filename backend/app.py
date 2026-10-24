@@ -5,13 +5,13 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from banco import inicializar_banco, salvar_lote_no_banco
 
-# Inicializa o banco ANTES de importar o motor para garantir a tabela pronta
 inicializar_banco()
 
 from motor import (
     processar_arquivo_lote,
     ler_arquivo_regras_bruto,
     salvar_arquivo_regras_bruto,
+    resetar_arquivo_regras_bruto,
     resetar_cache_sessao,
 )
 
@@ -23,9 +23,7 @@ PASTA_FRONTEND = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-
 def _localizar_diretorio_arquivo(caminho_relativo):
-    """Encontra o arquivo do frontend independentemente da estrutura de pastas usada."""
     nome_base = os.path.basename(caminho_relativo)
     candidatos = [
         (PASTA_FRONTEND, caminho_relativo),
@@ -39,18 +37,15 @@ def _localizar_diretorio_arquivo(caminho_relativo):
             return pasta, arquivo
     return PASTA_FRONTEND, caminho_relativo
 
-
 @app.route("/", methods=["GET"])
 def pagina_inicial():
     pasta, arquivo = _localizar_diretorio_arquivo("index.html")
     return send_from_directory(pasta, arquivo)
 
-
 @app.route("/<path:caminho>", methods=["GET"])
 def arquivos_do_front(caminho):
     pasta, arquivo = _localizar_diretorio_arquivo(caminho)
     return send_from_directory(pasta, arquivo)
-
 
 @app.route("/api/analisar-lote", methods=["POST", "OPTIONS"])
 def analisar_lote():
@@ -65,7 +60,6 @@ def analisar_lote():
     inicio = perf_counter()
     logging.info("EVENT=LOTE_RECEBIDO STATUS=INICIANDO")
 
-    # Se o usuário enviou o parâmetro limpar_cache=true, reseta antes de processar
     if request.form.get("limpar_cache") == "true":
         resetar_cache_sessao()
 
@@ -83,44 +77,42 @@ def analisar_lote():
     )
     return jsonify(resultado), 200
 
-
 @app.route("/api/configuracoes", methods=["GET"])
 @app.route("/api/validadores", methods=["GET"])
 def obter_configuracoes():
-    """Devolve as regras atuais para o frontend preencher o pop-up de edição."""
     regras = ler_arquivo_regras_bruto()
     return jsonify(regras), 200
-
 
 @app.route("/api/configuracoes", methods=["POST", "OPTIONS"])
 @app.route("/api/validadores", methods=["POST", "OPTIONS"])
 def atualizar_configuracoes():
-    """Recebe as novas regras do frontend, guarda no JSON e reseta o cache de testes."""
     if request.method == "OPTIONS":
         return "", 204
-
     novos_dados = request.get_json(silent=True)
     if not novos_dados:
         return jsonify({"erro": "Nenhum dado fornecido."}), 400
 
     sucesso, mensagem = salvar_arquivo_regras_bruto(novos_dados)
-
     if sucesso:
         return jsonify({"mensagem": mensagem}), 200
     return jsonify({"erro": mensagem}), 500
 
+@app.route("/api/configuracoes/reset", methods=["POST", "OPTIONS"])
+def resetar_configuracoes():
+    """Restaura as regras originais de fábrica."""
+    if request.method == "OPTIONS":
+        return "", 204
+    sucesso, mensagem = resetar_arquivo_regras_bruto()
+    if sucesso:
+        return jsonify({"mensagem": "Regras restauradas com sucesso!"}), 200
+    return jsonify({"erro": mensagem}), 500
 
 @app.route("/api/limpar-cache", methods=["POST", "OPTIONS"])
 def limpar_cache():
-    """Rota dedicada para limpar o histórico de testes da sessão sem perder o estoque original."""
     if request.method == "OPTIONS":
         return "", 204
-
     resetar_cache_sessao()
-    return jsonify({
-        "mensagem": "Cache de sessão limpo com sucesso! Você já pode testar seus lotes novamente."
-    }), 200
-
+    return jsonify({"mensagem": "Cache de sessão limpo com sucesso! Você já pode testar seus lotes novamente."}), 200
 
 if __name__ == "__main__":
     logging.info("EVENT=SERVIDOR_INICIANDO PORTA=8000")
