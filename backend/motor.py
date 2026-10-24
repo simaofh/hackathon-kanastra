@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from functools import lru_cache
 from banco import carregar_estoque_banco
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,23 @@ def _converter_float(valor_bruto, padrao=0.0):
         return padrao
 
 
+def _normalizar_chaves(linha):
+    """AJUSTE: o CSV do desafio tem cabeçalhos em MAIÚSCULAS (NU_DOCUMENTO, VALOR_NOMINAL...).
+    Deixa todas as chaves da linha em minúsculas para o resto do código encontrar as colunas."""
+    return {(k or "").strip().lower(): v for k, v in linha.items()}
+
+
+@lru_cache(maxsize=16384)
+def _parse_data(texto):
+    """AJUSTE: converte dd/mm/aaaa ou aaaa-mm-dd (com cache, para lotes grandes). Devolve None se inválida."""
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(texto, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 def _calcular_prazo_dias(linha):
     prazo_str = linha.get("prazo") or linha.get("prazo_dias") or linha.get("dias")
     if prazo_str is not None and str(prazo_str).strip() != "":
@@ -40,19 +58,23 @@ def _calcular_prazo_dias(linha):
         except ValueError:
             pass
 
-    vencimento_str = linha.get("data_vencimento") or linha.get("vencimento")
-    emissao_str = linha.get("data_emissao") or linha.get("emissao")
+    vencimento_str = (
+        linha.get("data_vencimento_original")  # AJUSTE: coluna real do CSV
+        or linha.get("data_vencimento")
+        or linha.get("vencimento")
+    )
+    emissao_str = (
+        linha.get("data_aquisicao")  # AJUSTE: coluna real do CSV
+        or linha.get("data_emissao")
+        or linha.get("emissao")
+    )
     if vencimento_str:
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
-            try:
-                dt_venc = datetime.strptime(str(vencimento_str).strip()[:10], fmt)
-                if emissao_str:
-                    dt_base = datetime.strptime(str(emissao_str).strip()[:10], fmt)
-                else:
-                    dt_base = datetime.now()
-                return max(1, (dt_venc - dt_base).days)
-            except ValueError:
-                continue
+        dt_venc = _parse_data(str(vencimento_str).strip()[:10])
+        if dt_venc is not None:
+            dt_base = _parse_data(str(emissao_str).strip()[:10]) if emissao_str else None
+            if dt_base is None:
+                dt_base = datetime.now()
+            return max(1, (dt_venc - dt_base).days)
     return 30
 
 
@@ -74,8 +96,10 @@ def carregar_estoque_em_memoria():
                     f.seek(0)
                     reader = csv.DictReader(f, delimiter=delimitador)
                     for row in reader:
+                        row = _normalizar_chaves(row)  # AJUSTE
                         id_nota = (
-                            row.get("id")
+                            row.get("nu_documento")  # AJUSTE: coluna real do CSV
+                            or row.get("id")
                             or row.get("id_nota")
                             or row.get("operacao_id")
                             or row.get("documento")
@@ -83,7 +107,8 @@ def carregar_estoque_em_memoria():
                             or row.get("id_recebivel")
                         )
                         cedente = (
-                            row.get("cedente")
+                            row.get("doc_cedente")  # AJUSTE: coluna real do CSV
+                            or row.get("cedente")
                             or row.get("cnpj_cedente")
                             or row.get("cedente_cnpj")
                             or CEDENTE_PADRAO
@@ -91,7 +116,7 @@ def carregar_estoque_em_memoria():
                         if id_nota:
                             id_limpo = str(id_nota).strip()
                             cedente_limpo = str(cedente).strip()
-                            ESTOQUE_IDS.add(id_limpo)
+                            # AJUSTE: cada cedente numera do seu jeito, então só vale cedente + número
                             ESTOQUE_IDS.add(f"{cedente_limpo}_{id_limpo}")
 
                         sacado = (
@@ -214,9 +239,11 @@ def processar_arquivo_lote(file_storage):
 
         for linha in leitor_csv:
             total_notas += 1
+            linha = _normalizar_chaves(linha)  # AJUSTE
 
             id_nota = str(
-                linha.get("id")
+                linha.get("nu_documento")  # AJUSTE: coluna real do CSV
+                or linha.get("id")
                 or linha.get("id_nota")
                 or linha.get("id_documento")
                 or linha.get("documento")
@@ -227,7 +254,8 @@ def processar_arquivo_lote(file_storage):
             ).strip()
 
             cedente = str(
-                linha.get("cedente")
+                linha.get("doc_cedente")  # AJUSTE: coluna real do CSV
+                or linha.get("cedente")
                 or linha.get("cnpj_cedente")
                 or linha.get("cedente_cnpj")
                 or CEDENTE_PADRAO
@@ -261,12 +289,7 @@ def processar_arquivo_lote(file_storage):
             motivo_recusa = None
 
             # Regra 1: Idempotência / Duplicidade (checa ID e Chave Composta em O(1))
-            if (
-                id_nota in ESTOQUE_IDS
-                or chave_duplicidade in ESTOQUE_IDS
-                or id_nota in chaves_vistas_no_lote
-                or chave_duplicidade in chaves_vistas_no_lote
-            ):
+            if chave_duplicidade in ESTOQUE_IDS or chave_duplicidade in chaves_vistas_no_lote:  # AJUSTE
                 aprovado = False
                 motivo_recusa = (
                     "Título já adquirido anteriormente na base histórica ou duplicado neste lote (idempotência)."
@@ -319,9 +342,7 @@ def processar_arquivo_lote(file_storage):
                 total_aprovados += 1
                 concentracao_lote[sacado] = concentracao_lote.get(sacado, 0.0) + valor_face
 
-                chaves_vistas_no_lote.add(id_nota)
                 chaves_vistas_no_lote.add(chave_duplicidade)
-                ESTOQUE_IDS.add(id_nota)
                 ESTOQUE_IDS.add(chave_duplicidade)
 
                 # Tupla de 6 posições exata para o executemany do banco.py
