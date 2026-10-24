@@ -84,4 +84,23 @@ def obter_configuracoes():
 
 
 @app.route("/api/configuracoes", methods=["POST", "OPTIONS"])
-@app.route
+@app.route("/api/validadores", methods=["POST", "OPTIONS"])
+def atualizar_configuracoes():
+    """Recebe as novas regras do frontend e guarda no ficheiro JSON."""
+    if request.method == "OPTIONS":
+        return "", 204
+
+    novos_dados = request.get_json(silent=True)
+    if not novos_dados:
+        return jsonify({"erro": "Nenhum dado fornecido."}), 400
+
+    sucesso, mensagem = salvar_arquivo_regras_bruto(novos_dados)
+
+    if sucesso:
+        return jsonify({"mensagem": mensagem}), 200
+    return jsonify({"erro": mensagem}), 500
+
+
+if __name__ == "__main__":
+    logging.info("EVENT=SERVIDOR_INICIANDO PORTA=8000")
+    app.run(host="0.0.0.0", port=8000, debug=False)
