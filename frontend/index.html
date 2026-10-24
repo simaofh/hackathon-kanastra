@@ -3,71 +3,147 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Antecipe - Simulação FIDC</title>
+  <title>Portal Antecipe | Simulação e Elegibilidade de Recebíveis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div>
+  <div class="app-layout">
+    <!-- Cabeçalho Principal -->
+    <header class="app-header">
+      <div class="header-titles">
+        <span class="header-tag">MERCADO DE CRÉDITO • FIDC</span>
         <h1>Portal <span>Antecipe</span></h1>
-        <p class="subtitle">Simulação e Validação de Elegibilidade FIDC</p>
+        <p class="subtitle">Plataforma de cessão e análise de elegibilidade de recebíveis em tempo real</p>
       </div>
-      <div>
-        <button class="btn-demo" id="btnDemo" type="button">⚡ Simular com Notas Exemplo</button>
+      <div class="header-controls">
+        <button class="btn-config" id="btnAbrirConfig" type="button">
+          ⚙️ Configurar Regras do Fundo
+        </button>
+        <button class="btn-demo" id="btnDemo" type="button">
+          Simular Lote Demonstração
+        </button>
       </div>
     </header>
 
-    <!-- Upload de Lote -->
-    <div class="upload-zone" id="dropZone">
-      <h3>Upload do Lote de Recebíveis (.csv)</h3>
-      <p>Clique aqui ou arraste seu arquivo .csv para validar ou teste pelo botão acima</p>
-      <input type="file" id="csvInput" accept=".csv" style="display: none;">
-    </div>
+    <!-- Zona de Upload de Lote -->
+    <section class="upload-section">
+      <div class="upload-zone" id="dropZone">
+        <div class="upload-icon-wrapper">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="upload-text-group">
+          <h3>Selecione ou arraste o lote de duplicatas (.csv)</h3>
+          <p>Validação automática de risco, prazo, valor mínimo e checagem de duplicidade</p>
+        </div>
+        <button type="button" class="btn-browse-file">Carregar Arquivo</button>
+        <input type="file" id="csvInput" accept=".csv" style="display: none;">
+      </div>
+    </section>
 
-    <!-- Cards de Resumo -->
-    <div class="metrics-grid">
+    <!-- Cards de Métricas Financeiras -->
+    <section class="metrics-grid">
       <div class="metric-card">
-        <div class="metric-title">Notas Analisadas</div>
+        <div class="metric-header">
+          <span class="metric-label">Notas Analisadas</span>
+        </div>
         <div class="metric-value" id="totalNotas">0</div>
+        <div class="metric-detail">Total de títulos no lote</div>
       </div>
+
       <div class="metric-card">
-        <div class="metric-title">Valor Solicitado (Bruto)</div>
+        <div class="metric-header">
+          <span class="metric-label">Valor Face Total</span>
+        </div>
         <div class="metric-value" id="totalBruto">R$ 0,00</div>
+        <div class="metric-detail">Volume nominal solicitado</div>
       </div>
-      <div class="metric-card">
-        <div class="metric-title">Valor Líquido Aprovado</div>
+
+      <div class="metric-card card-approved">
+        <div class="metric-header">
+          <span class="metric-label">Líquido Aprovado</span>
+        </div>
         <div class="metric-value approved" id="totalLiquido">R$ 0,00</div>
+        <div class="metric-detail">Desconto comercial simples aplicado</div>
       </div>
-      <div class="metric-card">
-        <div class="metric-title">Notas Recusadas</div>
+
+      <div class="metric-card card-rejected">
+        <div class="metric-header">
+          <span class="metric-label">Notas Inelegíveis</span>
+        </div>
         <div class="metric-value rejected" id="totalRecusadas">0</div>
+        <div class="metric-detail">Reprovadas pelas regras da carteira</div>
       </div>
-    </div>
+    </section>
+
+    <!-- Banner de Amostragem (Escalabilidade) -->
+    <div id="avisoAmostragem" class="sampling-banner" style="display: none;"></div>
 
     <!-- Tabela de Simulação e Explicação de Recusas -->
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>ID / Nota</th>
-            <th>Sacado</th>
-            <th>Valor de Face</th>
-            <th>Prazo</th>
-            <th>Taxa / Desconto</th>
-            <th>Valor Líquido</th>
-            <th>Status</th>
-            <th>Diagnóstico / Motivo da Recusa</th>
-          </tr>
-        </thead>
-        <tbody id="tabelaCorpo">
-          <tr>
-            <td colspan="8" class="empty-state">
-              Nenhum lote carregado. Envie um arquivo CSV ou clique no botão de simulação.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <section class="table-card">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID / Documento</th>
+              <th>Sacado</th>
+              <th>Valor de Face</th>
+              <th>Prazo</th>
+              <th>Taxa / Desconto</th>
+              <th>Valor Líquido</th>
+              <th>Status</th>
+              <th>Diagnóstico / Motivo da Recusa</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaCorpo">
+            <tr>
+              <td colspan="8" class="empty-state">
+                Nenhum lote carregado. Envie um arquivo CSV ou clique no botão de demonstração.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Pop-up (Modal) de Configuração de Validadores -->
+  <div id="modalConfig" class="modal-overlay" style="display: none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <span class="header-tag">MOTOR DE REGRAS DINÂMICO</span>
+          <h2>Parâmetros de Elegibilidade</h2>
+        </div>
+        <button type="button" id="btnFecharModal" class="btn-close-modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="selectValidador">1. Selecione o Validador / Regra do Fundo:</label>
+          <select id="selectValidador" class="form-control"></select>
+        </div>
+
+        <div id="painelParametrosValidador" class="validator-config-card">
+          <!-- Carregado dinamicamente conforme o validador escolhido -->
+        </div>
+
+        <div class="pricing-config-box">
+          <label for="inputTaxaMensal">Taxa de Desconto Simples Mensal (% a.m.):</label>
+          <input type="number" id="inputTaxaMensal" class="form-control" step="0.05" min="0" value="2.0">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnCancelarModal" class="btn-secondary">Cancelar</button>
+        <button type="button" id="btnSalvarRegras" class="btn-demo">Salvar e Aplicar Regras</button>
+      </div>
     </div>
   </div>
 
