@@ -67,7 +67,7 @@ def salvar_lote_no_banco(itens, cedente_doc_padrao="00000000000191"):
             if isinstance(item, (tuple, list)) and len(item) == 6:
                 if str(item[4]).upper() == "APROVADO":
                     dados_insercao.append(tuple(item))
-            elif isinstance(item, dict) and item.get("status") == "APROVADO":
+            elif isinstance(item, dict) and str(item.get("status", "")).upper() == "APROVADO":
                 id_doc = item.get("id_documento") or item.get("id")
                 chave = item.get("chave_duplicidade") or f"{cedente_doc_padrao}_{id_doc}"
                 dados_insercao.append((
@@ -95,4 +95,20 @@ def salvar_lote_no_banco(itens, cedente_doc_padrao="00000000000191"):
         return True
     except Exception as e:
         logging.error(f"EVENT=PERSISTENCIA_BANCO STATUS=ERRO TIPO={type(e).__name__}")
+        return False
+
+
+def limpar_banco():
+    """Limpa os lotes de teste salvos no SQLite para permitir novas simulações sem bloqueio de idempotência."""
+    try:
+        inicializar_banco()
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM lotes_processados")
+        conn.commit()
+        conn.close()
+        logging.info("EVENT=CACHE_BANCO_LIMPO STATUS=SUCESSO")
+        return True
+    except Exception as e:
+        logging.error(f"EVENT=CACHE_BANCO_ERRO TIPO={type(e).__name__}")
         return False
