@@ -1,204 +1,216 @@
-:root {
-  --primary: #10B981;
-  --primary-dark: #059669;
-  --bg: #0F172A;
-  --card-bg: #1E293B;
-  --text: #F8FAFC;
-  --text-muted: #94A3B8;
-  --danger: #EF4444;
-  --border: #334155;
+/**
+ * Portal Antecipe - Hackathon Kanastra
+ * Integração Frontend com API em Python
+ */
+
+// ==========================================
+// 1. CONFIGURAÇÕES DE CONEXÃO COM O BACKEND
+// (Altere apenas aqui se o time mudar a porta ou a rota)
+// ==========================================
+const CONFIG = {
+  API_URL: "http://localhost:8000/api/analisar-lote", // Endpoint do backend Python
+  FILE_FIELD_NAME: "lote"                            // Nome do campo multipart esperado
+};
+
+// ==========================================
+// 2. DADOS DE DEMONSTRAÇÃO / FALLBACK
+// (Mantém o layout funcional para testes e avaliação de UX)
+// ==========================================
+const dadosDemonstracao = {
+  resumo: {
+    totalNotas: 4,
+    totalBruto: "R$ 48.500,00",
+    totalLiquido: "R$ 31.780,00",
+    totalRecusadas: 2
+  },
+  itens: [
+    {
+      id: "NF-8921",
+      sacado: "Distribuidora Minas Alimentos Ltda",
+      valorFace: "R$ 15.000,00",
+      prazo: "30 dias",
+      desconto: "R$ 375,00 (2.5%)",
+      valorLiquido: "R$ 14.625,00",
+      status: "APROVADO",
+      motivoRecusa: null
+    },
+    {
+      id: "NF-8922",
+      sacado: "Supermercados Triângulo S.A.",
+      valorFace: "R$ 18.000,00",
+      prazo: "45 dias",
+      desconto: "R$ 845,00 (3.75%)",
+      valorLiquido: "R$ 17.155,00",
+      status: "APROVADO",
+      motivoRecusa: null
+    },
+    {
+      id: "NF-8923",
+      sacado: "Comércio Varejista do Cerrado",
+      valorFace: "R$ 15.000,00",
+      prazo: "135 dias",
+      desconto: "-",
+      valorLiquido: "-",
+      status: "RECUSADO",
+      motivoRecusa: "Prazo de vencimento (135 dias) ultrapassa o teto máximo de 90 dias permitido pela política de risco do FIDC."
+    },
+    {
+      id: "NF-8924",
+      sacado: "Indústria Metalúrgica Triunfo",
+      valorFace: "R$ 500,00",
+      prazo: "20 dias",
+      desconto: "-",
+      valorLiquido: "-",
+      status: "RECUSADO",
+      motivoRecusa: "Valor de face abaixo da régua mínima permitida pelo regulamento do fundo (mínimo exigido: R$ 1.000,00)."
+    }
+  ]
+};
+
+// ==========================================
+// 3. SELETORES E EVENTOS DA INTERFACE
+// ==========================================
+const dropZone = document.getElementById("dropZone");
+const csvInput = document.getElementById("csvInput");
+const btnDemo = document.getElementById("btnDemo");
+
+// Evento de clique na área de upload
+if (dropZone && csvInput) {
+  dropZone.addEventListener("click", () => csvInput.click());
+
+  // Drag and Drop
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--primary)";
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.style.borderColor = "var(--border)";
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--border)";
+    if (e.dataTransfer.files.length > 0) {
+      enviarLoteParaBackend(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Seleção de arquivo tradicional
+  csvInput.addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+      enviarLoteParaBackend(e.target.files[0]);
+    }
+  });
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+// Botão para demonstração imediata
+if (btnDemo) {
+  btnDemo.addEventListener("click", () => {
+    renderizarResultados(dadosDemonstracao);
+  });
 }
 
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  padding: 32px 16px;
+// ==========================================
+// 4. ENVIO PARA O BACKEND EM PYTHON (FETCH)
+// ==========================================
+async function enviarLoteParaBackend(arquivoCSV) {
+  if (!arquivoCSV.name.endsWith(".csv")) {
+    alert("Por favor, selecione um arquivo válido no formato .csv");
+    return;
+  }
+
+  // Prepara o formulário com o campo esperado pelo backend
+  const formData = new FormData();
+  formData.append(CONFIG.FILE_FIELD_NAME, arquivoCSV);
+
+  // Exibe mensagem de carregamento na tabela
+  mostrarCarregando(arquivoCSV.name);
+
+  try {
+    const resposta = await fetch(CONFIG.API_URL, {
+      method: "POST",
+      body: formData
+    });
+
+    if (!resposta.ok) {
+      throw new Error(`Servidor respondeu com código HTTP ${resposta.status}`);
+    }
+
+    const dados = await resposta.json();
+    renderizarResultados(dados);
+
+  } catch (erro) {
+    console.warn("Falha na conexão com a API Python:", erro);
+    alert(
+      "Aviso: Não foi possível conectar ao backend em " + CONFIG.API_URL + 
+      "\n\nExibindo dados de simulação para validação do layout de UX."
+    );
+    // Caso o backend esteja desligado ou em desenvolvimento, exibe a simulação sem quebrar a tela
+    renderizarResultados(dadosDemonstracao);
+  }
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
+// ==========================================
+// 5. RENDERIZAÇÃO NA TELA (DESIGN E UX - 25 PONTOS)
+// ==========================================
+function renderizarResultados(resultado) {
+  if (!resultado || !resultado.resumo || !resultado.itens) {
+    console.error("Formato JSON recebido incompatível com a especificação:", resultado);
+    return;
+  }
+
+  // 1. Atualiza os cards executivos
+  document.getElementById("totalNotas").textContent = resultado.resumo.totalNotas;
+  document.getElementById("totalBruto").textContent = resultado.resumo.totalBruto;
+  document.getElementById("totalLiquido").textContent = resultado.resumo.totalLiquido;
+  document.getElementById("totalRecusadas").textContent = resultado.resumo.totalRecusadas;
+
+  // 2. Monta as linhas da tabela com foco nas explicações de recusa
+  const corpoTabela = document.getElementById("tabelaCorpo");
+  corpoTabela.innerHTML = "";
+
+  resultado.itens.forEach(item => {
+    const tr = document.createElement("tr");
+
+    const ehAprovado = String(item.status).toUpperCase() === "APROVADO";
+    const statusBadge = ehAprovado ? "badge-success" : "badge-error";
+    
+    // Tratamento amigável da explicação da recusa (Critério de UX do edital)
+    const diagnosticoVisual = ehAprovado
+      ? '<span class="approved-text">✓ Elegível para antecipação imediata</span>'
+      : `<div class="reason-box">${item.motivoRecusa || "Critério de elegibilidade não atendido."}</div>`;
+
+    tr.innerHTML = `
+      <td><strong>${item.id || "-"}</strong></td>
+      <td>${item.sacado || "-"}</td>
+      <td>${item.valorFace || "-"}</td>
+      <td>${item.prazo || "-"}</td>
+      <td>${item.desconto || "-"}</td>
+      <td style="color: ${ehAprovado ? 'var(--primary)' : 'inherit'}; font-weight: 600;">
+        ${item.valorLiquido || "-"}
+      </td>
+      <td>
+        <span class="badge ${statusBadge}">
+          ${item.status}
+        </span>
+      </td>
+      <td>${diagnosticoVisual}</td>
+    `;
+    corpoTabela.appendChild(tr);
+  });
 }
 
-header {
-  margin-bottom: 28px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #fff;
-}
-
-h1 span {
-  color: var(--primary);
-}
-
-.subtitle {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-top: 4px;
-}
-
-.btn-demo {
-  background: #334155;
-  color: #F8FAFC;
-  border: 1px solid var(--border);
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.btn-demo:hover {
-  background: #475569;
-}
-
-.upload-zone {
-  background: var(--card-bg);
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 36px 20px;
-  text-align: center;
-  cursor: pointer;
-  margin-bottom: 24px;
-  transition: all 0.2s;
-}
-
-.upload-zone:hover {
-  border-color: var(--primary);
-  background: #243248;
-}
-
-.upload-zone h3 {
-  font-size: 1.2rem;
-  margin-bottom: 6px;
-}
-
-.upload-zone p {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.metric-card {
-  background: var(--card-bg);
-  padding: 20px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-}
-
-.metric-title {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.metric-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.metric-value.approved {
-  color: var(--primary);
-}
-
-.metric-value.rejected {
-  color: var(--danger);
-}
-
-.table-container {
-  background: var(--card-bg);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.9rem;
-}
-
-th, td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-th {
-  background: #162032;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-tr:hover {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.badge {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: inline-block;
-  text-transform: uppercase;
-}
-
-.badge-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--primary);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.badge-error {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.reason-box {
-  font-size: 0.85rem;
-  color: #FCA5A5;
-  background: rgba(239, 68, 68, 0.1);
-  padding: 6px 10px;
-  border-radius: 6px;
-  border-left: 3px solid var(--danger);
-  max-width: 400px;
-  line-height: 1.35;
-}
-
-.approved-text {
-  color: var(--primary);
-  font-size: 0.85rem;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 36px;
+function mostrarCarregando(nomeArquivo) {
+  const corpoTabela = document.getElementById("tabelaCorpo");
+  corpoTabela.innerHTML = `
+    <tr>
+      <td colspan="8" style="text-align: center; color: var(--primary); padding: 40px;">
+        <p style="font-size: 1.1rem; font-weight: 600;">⏳ Processando "${nomeArquivo}"...</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px;">
+          Validando regras de risco, prazo, valor mínimo e duplicidade contra o estoque FIDC.
+        </p>
+      </td>
+    </tr>
+  `;
 }
