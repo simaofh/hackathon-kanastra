@@ -5,7 +5,8 @@
 
 const CONFIG = {
   API_URL: "http://localhost:8000/api/analisar-lote",
-  FILE_FIELD_NAME: "lote"
+  FILE_FIELD_NAME: "lote",
+  MAX_DOM_ROWS: 500
 };
 
 const dropZone = document.getElementById("dropZone");
@@ -35,13 +36,13 @@ if (dropZone && csvInput) {
   csvInput.addEventListener("change", (e) => {
     if (e.target.files.length > 0) {
       enviarLoteParaBackend(e.target.files[0]);
+      csvInput.value = "";
     }
   });
 }
 
 if (btnDemo) {
   btnDemo.addEventListener("click", () => {
-    // Demonstração local rápida para apresentação de UX
     const dadosExemplo = {
       resumo: {
         totalNotas: 3,
@@ -55,7 +56,7 @@ if (btnDemo) {
           sacado: "Distribuidora Minas Ltda",
           valorFace: "R$ 15.000,00",
           prazo: "30 dias",
-          desconto: "R$ 375,00 (2.5%)",
+          desconto: "R$ 375,00 (2.50%)",
           valorLiquido: "R$ 14.625,00",
           status: "APROVADO",
           motivoRecusa: null
@@ -87,7 +88,7 @@ if (btnDemo) {
 }
 
 async function enviarLoteParaBackend(arquivoCSV) {
-  if (!arquivoCSV.name.endsWith(".csv")) {
+  if (!arquivoCSV.name.toLowerCase().endsWith(".csv")) {
     alert("Por favor, selecione um arquivo no formato .csv");
     return;
   }
@@ -113,11 +114,11 @@ async function enviarLoteParaBackend(arquivoCSV) {
 
   } catch (erro) {
     console.warn("Falha na chamada ao backend:", erro);
-    alert("Erro na conexão com o Backend: " + erro.message);
     document.getElementById("tabelaCorpo").innerHTML = `
       <tr>
         <td colspan="8" class="empty-state" style="color: var(--danger);">
-          Erro ao processar lote via API. Verifique se o backend Python está rodando na porta 8000.
+          <strong>Erro ao conectar com o Backend:</strong> ${erro.message}<br>
+          Verifique se o servidor Python está rodando na porta 8000 (<code>python app.py</code>).
         </td>
       </tr>
     `;
@@ -125,7 +126,7 @@ async function enviarLoteParaBackend(arquivoCSV) {
 }
 
 function renderizarResultados(resultado) {
-  if (!resultado || !resultado.resumo || !resultado.itens) {
+  if (!resultado || !resultado.resumo || !Array.isArray(resultado.itens)) {
     console.error("Formato JSON recebido incompatível:", resultado);
     return;
   }
@@ -138,11 +139,23 @@ function renderizarResultados(resultado) {
   const corpoTabela = document.getElementById("tabelaCorpo");
   corpoTabela.innerHTML = "";
 
-  resultado.itens.forEach(item => {
+  if (resultado.itens.length === 0) {
+    corpoTabela.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">O arquivo enviado não contém linhas válidas.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const itensExibidos = resultado.itens.slice(0, CONFIG.MAX_DOM_ROWS);
+
+  itensExibidos.forEach(item => {
     const tr = document.createElement("tr");
     const ehAprovado = String(item.status).toUpperCase() === "APROVADO";
     const statusBadge = ehAprovado ? "badge-success" : "badge-error";
-    
+
     const diagnosticoVisual = ehAprovado
       ? '<span class="approved-text">✓ Elegível para antecipação imediata</span>'
       : `<div class="reason-box">${item.motivoRecusa || item.motivo || "Critério de elegibilidade não atendido."}</div>`;
@@ -163,8 +176,21 @@ function renderizarResultados(resultado) {
       </td>
       <td>${diagnosticoVisual}</td>
     `;
-    corpoTabela.appendChild(tr);
+    fragment.appendChild(tr);
   });
+
+  if (resultado.resumo.totalNotas > itensExibidos.length) {
+    const trAviso = document.createElement("tr");
+    trAviso.innerHTML = `
+      <td colspan="8" class="empty-state" style="color: var(--primary); font-weight: 600;">
+        ✓ Todas as ${resultado.resumo.totalNotas} notas foram processadas e contabilizadas nos totais acima.
+        Exibindo as primeiras ${itensExibidos.length} linhas para manter a fluidez da interface.
+      </td>
+    `;
+    fragment.appendChild(trAviso);
+  }
+
+  corpoTabela.appendChild(fragment);
 }
 
 function mostrarCarregando(nomeArquivo) {
