@@ -1,4 +1,7 @@
 import logging
+import os
+from time import perf_counter
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from banco import inicializar_banco, salvar_lote_no_banco
@@ -8,57 +11,55 @@ inicializar_banco()
 
 from motor import processar_arquivo_lote
 
-# Configuração de Logs Estruturados sem vazar dados sensíveis do CSV (15 pontos do edital)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-app = Flask(__name__, static_folder='.')
-CORS(app, resources={r"/*": {"origins": "*"}})
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PASTA_FRONTEND = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 
-
-@app.route('/', methods=['GET'])
-def servir_index():
-    return send_from_directory('.', 'index.html')
+app = Flask(__name__)
+# CORS liberado para a API (o front normalmente é servido pelo próprio Flask, na mesma porta)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
-@app.route('/<path:filename>', methods=['GET'])
-def servir_arquivos_estaticos(filename):
-    if filename in ('style.css', 'script.js'):
-        return send_from_directory('.', filename)
-    return jsonify({"erro": "Recurso não encontrado."}), 404
+@app.route("/", methods=["GET"])
+def pagina_inicial():
+    return send_from_directory(PASTA_FRONTEND, "index.html")
 
 
-@app.route('/api/analisar-lote', methods=['POST', 'OPTIONS'])
+@app.route("/<path:caminho>", methods=["GET"])
+def arquivos_do_front(caminho):
+    # Serve frontend/css/style.css, frontend/js/script.js etc.
+    return send_from_directory(PASTA_FRONTEND, caminho)
+
+
+@app.route("/api/analisar-lote", methods=["POST", "OPTIONS"])
 def analisar_lote():
-    if request.method == 'OPTIONS':
-        return '', 204
+    if request.method == "OPTIONS":
+        return "", 204
 
-    logging.info("EVENT=LOTE_RECEBIDO STATUS=INICIANDO")
+    arquivo = request.files.get("lote")
+    if arquivo is None or arquivo.filename == "":
+        logging.warning("EVENT=LOTE_REJEITADO MOTIVO=CAMPO_LOTE_AUSENTE")
+        return jsonify({"erro": "Envie o arquivo CSV no campo 'lote'."}), 400
 
-    if 'lote' not in request.files:
-        logging.warning("EVENT=VALIDACAO_FALHA MOTIVO=CAMPO_LOTE_AUSENTE")
-        return jsonify({"erro": "O campo 'lote' é obrigatório no envio do arquivo."}), 400
+    inicio = perf_counter()
+    logging.info("EVENT=LOTE_RECEBIDO")
 
-    arquivo_lote = request.files.get('lote')
-    if not arquivo_lote or arquivo_lote.filename == '':
-        logging.warning("EVENT=VALIDACAO_FALHA MOTIVO=ARQUIVO_VAZIO")
-        return jsonify({"erro": "Nenhum arquivo foi selecionado."}), 400
-
-    # 1. Processa o CSV através das regras do motor
-    resultado_processamento, aprovados_para_banco, erro = processar_arquivo_lote(arquivo_lote)
+    resultado, aprovados_para_banco, erro = processar_arquivo_lote(arquivo)
     if erro:
-        logging.error("EVENT=PROCESSAMENTO_ERRO STATUS=FALHA")
+        logging.warning("EVENT=LOTE_REJEITADO MOTIVO=ERRO_DE_PROCESSAMENTO")
         return jsonify({"erro": erro}), 400
 
-    # 2. Persiste os títulos aprovados no banco em lote (Bulk Insert)
     salvar_lote_no_banco(aprovados_para_banco)
 
+    resumo = resultado["resumo"]
     logging.info(
-        f"EVENT=PROCESSAMENTO_CONCLUIDO STATUS=SUCESSO "
-        f"TOTAL={resultado_processamento['resumo']['totalNotas']} "
-        f"RECUSADAS={resultado_processamento['resumo']['totalRecusadas']}"
+        "EVENT=LOTE_PROCESSADO NOTAS=%s RECUSADAS=%s SEGUNDOS=%.2f",
+        resumo["totalNotas"], resumo["totalRecusadas"], perf_counter() - inicio,
     )
-    return jsonify(resultado_processamento), 200
+    return jsonify(resultado), 200
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=False)
+if __name__ == "__main__":
+    logging.info("EVENT=SERVIDOR_INICIANDO PORTA=8000")
+    app.run(host="127.0.0.1", port=8000, debug=False)
