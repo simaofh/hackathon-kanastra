@@ -23,9 +23,7 @@ VALOR_TOTAL_ESTOQUE = 0.0
 LIMITE_ITENS_RESPOSTA_JSON = 500
 CEDENTE_PADRAO = "00000000000191"
 
-
 def _obter_caminho_regras():
-    """Localiza o arquivo de regras (validadores_antecipe_3.json, validadores.json ou config)."""
     nomes_arquivos = ["validadores_antecipe_3.json", "validadores.json", "config.json", "config"]
     pastas = [
         BASE_DIR,
@@ -40,7 +38,6 @@ def _obter_caminho_regras():
             if os.path.isfile(caminho):
                 return caminho
     return os.path.join(BASE_DIR, "validadores_antecipe_3.json")
-
 
 def _converter_float(valor_bruto, padrao=0.0):
     if valor_bruto is None:
@@ -57,26 +54,20 @@ def _converter_float(valor_bruto, padrao=0.0):
     except ValueError:
         return padrao
 
-
 def _normalizar_chaves(linha):
-    """Deixa todas as chaves da linha em minúsculas para compatibilidade com qualquer CSV."""
     return {(k or "").strip().lower(): v for k, v in linha.items()}
-
 
 def _apenas_digitos(texto):
     return re.sub(r"\D", "", str(texto or ""))
 
-
 @lru_cache(maxsize=16384)
 def _parse_data(texto):
-    """Converte dd/mm/aaaa ou aaaa-mm-dd com cache para alta performance em lotes de 500k linhas."""
     for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
         try:
             return datetime.strptime(texto, fmt)
         except ValueError:
             continue
     return None
-
 
 def _calcular_prazo_dias(linha):
     prazo_str = linha.get("prazo") or linha.get("prazo_dias") or linha.get("dias")
@@ -85,7 +76,6 @@ def _calcular_prazo_dias(linha):
             return int(float(str(prazo_str).strip()))
         except ValueError:
             pass
-
     vencimento_str = (
         linha.get("data_vencimento_original")
         or linha.get("data_vencimento")
@@ -105,9 +95,7 @@ def _calcular_prazo_dias(linha):
             return (dt_venc - dt_base).days
     return 30
 
-
 def carregar_estoque_em_memoria():
-    """Carrega o estoque_antecipe.csv e os registros do SQLite para garantir idempotência em O(1)."""
     global VALOR_TOTAL_ESTOQUE
     ESTOQUE_CSV_ORIGINAL.clear()
     CONCENTRACAO_CSV_ORIGINAL.clear()
@@ -180,52 +168,32 @@ def carregar_estoque_em_memoria():
                                 CONCENTRACAO_CEDENTE_CSV_ORIGINAL[chave_ced] = (
                                     CONCENTRACAO_CEDENTE_CSV_ORIGINAL.get(chave_ced, 0.0) + valor
                                 )
-
                 logging.info(f"EVENT=ESTOQUE_CSV_CARREGADO STATUS=SUCESSO CHAVES_ORIGINAIS={len(ESTOQUE_CSV_ORIGINAL)}")
                 break
             except Exception as e:
                 logging.error(f"EVENT=ESTOQUE_CSV_ERRO TIPO={type(e).__name__}")
 
-    # Sincroniza o estado ativo com a base histórica + banco SQLite
     ESTOQUE_IDS.clear()
     ESTOQUE_IDS.update(ESTOQUE_CSV_ORIGINAL)
     ESTOQUE_IDS.update(carregar_estoque_banco())
-
     CONCENTRACAO_HISTORICA.clear()
     CONCENTRACAO_HISTORICA.update(CONCENTRACAO_CSV_ORIGINAL)
-
     CONCENTRACAO_CEDENTE_HISTORICA.clear()
     CONCENTRACAO_CEDENTE_HISTORICA.update(CONCENTRACAO_CEDENTE_CSV_ORIGINAL)
 
-
 def resetar_cache_sessao():
-    """
-    Limpa os lotes de teste do banco SQLite e restaura a memória RAM
-    apenas para o estoque original (estoque_antecipe.csv) em O(1).
-    """
     limpar_banco()
     ESTOQUE_IDS.clear()
     ESTOQUE_IDS.update(ESTOQUE_CSV_ORIGINAL)
-
     CONCENTRACAO_HISTORICA.clear()
     CONCENTRACAO_HISTORICA.update(CONCENTRACAO_CSV_ORIGINAL)
-
     CONCENTRACAO_CEDENTE_HISTORICA.clear()
     CONCENTRACAO_CEDENTE_HISTORICA.update(CONCENTRACAO_CEDENTE_CSV_ORIGINAL)
     logging.info(f"EVENT=CACHE_SESSAO_RESETADO STATUS=SUCESSO CHAVES_ATIVAS={len(ESTOQUE_IDS)}")
     return True
 
-
-def ler_arquivo_regras_bruto():
-    """Retorna o JSON completo para o frontend poder editar."""
-    caminho = _obter_caminho_regras()
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, "r", encoding="utf-8-sig") as f:
-                return json.load(f)
-        except Exception as e:
-            logging.error(f"EVENT=LEITURA_REGRAS_ERRO TIPO={type(e).__name__}")
-
+def obter_regras_padrao():
+    """Devolve a estrutura original de fábrica das regras do fundo."""
     return {
         "fundo": {"nome": "ANTECIPE FIDC", "cnpj": "92.234.400/0001-80"},
         "validadores": [
@@ -246,17 +214,21 @@ def ler_arquivo_regras_bruto():
         }
     }
 
+def ler_arquivo_regras_bruto():
+    caminho = _obter_caminho_regras()
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8-sig") as f:
+                return json.load(f)
+        except Exception as e:
+            logging.error(f"EVENT=LEITURA_REGRAS_ERRO TIPO={type(e).__name__}")
+    return obter_regras_padrao()
 
 def salvar_arquivo_regras_bruto(novos_dados):
-    """
-    Guarda o JSON editado pelo utilizador no ficheiro físico sem precisar de redeploy
-    e limpa automaticamente o cache de sessão para permitir re-testar o mesmo lote!
-    """
     caminho = _obter_caminho_regras()
     try:
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(novos_dados, f, indent=2, ensure_ascii=False)
-        # Limpa o cache de sessão ao atualizar regras para que o re-teste do lote funcione sem falso positivo de duplicidade
         resetar_cache_sessao()
         logging.info("EVENT=REGRAS_ATUALIZADAS STATUS=SUCESSO")
         return True, "Regras atualizadas e cache de sessão reiniciado com sucesso."
@@ -264,11 +236,12 @@ def salvar_arquivo_regras_bruto(novos_dados):
         logging.error(f"EVENT=REGRAS_ATUALIZACAO_ERRO TIPO={type(e).__name__}")
         return False, "Erro ao guardar regras."
 
+def resetar_arquivo_regras_bruto():
+    """Restaura as regras de fábrica e salva no arquivo."""
+    return salvar_arquivo_regras_bruto(obter_regras_padrao())
 
 def carregar_regras_validadores():
-    """Converte o JSON bruto em dicionário estruturado para execução rápida no motor."""
     dados = ler_arquivo_regras_bruto()
-
     regras = {
         "cnpj_valido_ativo": False,
         "situacao_cadastral_ativo": False,
@@ -320,59 +293,38 @@ def carregar_regras_validadores():
             regras["tipos_aceitos"] = [str(t).strip().upper() for t in tipos]
         elif codigo == "VALOR_MINIMO":
             regras["valor_minimo_ativo"] = ativo
-            regras["valor_minimo"] = _converter_float(
-                params.get("valor_minimo") or params.get("valor"), 100.0
-            )
+            regras["valor_minimo"] = _converter_float(params.get("valor_minimo") or params.get("valor"), 100.0)
         elif codigo == "NAO_VENCIDA":
             regras["nao_vencida_ativo"] = ativo
         elif codigo == "PRAZO_MAXIMO":
             regras["prazo_maximo_ativo"] = ativo
-            regras["prazo_maximo_dias"] = int(_converter_float(
-                params.get("prazo_maximo_dias") or params.get("dias"), 180
-            ))
+            regras["prazo_maximo_dias"] = int(_converter_float(params.get("prazo_maximo_dias") or params.get("dias"), 180))
         elif codigo == "PRAZO_MINIMO":
             regras["prazo_minimo_ativo"] = ativo
-            regras["prazo_minimo_dias"] = int(_converter_float(
-                params.get("prazo_minimo_dias") or params.get("dias"), 30
-            ))
+            regras["prazo_minimo_dias"] = int(_converter_float(params.get("prazo_minimo_dias") or params.get("dias"), 30))
         elif codigo in ("CONCENTRACAO_MAXIMA_SACADO", "CONCENTRACAO_SACADO"):
             regras["concentracao_sacado_ativo"] = ativo
-            regras["percentual_concentracao_sacado"] = _converter_float(
-                params.get("percentual_maximo"), 10.0
-            )
+            regras["percentual_concentracao_sacado"] = _converter_float(params.get("percentual_maximo"), 10.0)
             regras["agrupamento_sacado"] = str(params.get("agrupamento", "RAIZ_CNPJ")).upper()
             if "limite" in params or "valor_maximo" in params:
-                regras["limite_concentracao_sacado"] = _converter_float(
-                    params.get("limite") or params.get("valor_maximo"), 100000.0
-                )
+                regras["limite_concentracao_sacado"] = _converter_float(params.get("limite") or params.get("valor_maximo"), 100000.0)
         elif codigo == "CONCENTRACAO_MAXIMA_CEDENTE":
             regras["concentracao_cedente_ativo"] = ativo
-            regras["percentual_concentracao_cedente"] = _converter_float(
-                params.get("percentual_maximo"), 8.0
-            )
+            regras["percentual_concentracao_cedente"] = _converter_float(params.get("percentual_maximo"), 8.0)
 
     return regras
 
-
-# Inicializa o estoque (Banco SQLite + CSV Histórico) ao carregar o módulo
 carregar_estoque_em_memoria()
-
 
 def _formatar_moeda(valor):
     texto = f"{valor:,.2f}"
     texto = texto.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {texto}"
 
-
 def processar_arquivo_lote(file_storage):
-    """
-    Processa o CSV de lote, valida as regras configuradas do FIDC,
-    calcula o desconto simples e devolve os dados para o frontend e banco.
-    """
     try:
         conteudo_bytes = file_storage.read()
         conteudo = conteudo_bytes.decode("utf-8-sig", errors="replace")
-
         primeira_linha = conteudo.splitlines()[0] if conteudo else ""
         delimitador = ";" if ";" in primeira_linha else ","
 
@@ -443,10 +395,7 @@ def processar_arquivo_lote(file_storage):
             else:
                 chave_concentracao_sacado = digitos_cnpj_sacado or sacado_exibicao
 
-            valor_face = _converter_float(
-                linha.get("valor_nominal") or linha.get("valor") or linha.get("valor_face"),
-                0.0
-            )
+            valor_face = _converter_float(linha.get("valor_nominal") or linha.get("valor") or linha.get("valor_face"), 0.0)
             prazo_dias = _calcular_prazo_dias(linha)
 
             situacao_cnpj = str(
@@ -468,89 +417,43 @@ def processar_arquivo_lote(file_storage):
             aprovado = True
             motivo_recusa = None
 
-            # 1. Idempotência / Duplicidade em O(1)
             if chave_duplicidade in ESTOQUE_IDS or chave_duplicidade in chaves_vistas_no_lote:
                 aprovado = False
-                motivo_recusa = (
-                    "Título já adquirido anteriormente na base histórica ou duplicado neste lote (idempotência)."
-                )
-
-            # 2. CNPJ do Sacado Válido
+                motivo_recusa = "Título já adquirido anteriormente na base histórica ou duplicado neste lote (idempotência)."
             elif regras["cnpj_valido_ativo"] and doc_sacado_bruto and len(digitos_cnpj_sacado) != 14:
                 aprovado = False
                 motivo_recusa = f"CNPJ do sacado inválido ({doc_sacado_bruto}). Deve conter 14 dígitos numéricos."
-
-            # 3. Situação Cadastral do Sacado
             elif regras["situacao_cadastral_ativo"] and (
                 situacao_cnpj in ("INATIVO", "INATIVA", "BAIXADO", "BAIXADA", "SUSPENSO", "SUSPENSA", "INAPTO", "INAPTA", "NULO")
                 or (regras["situacoes_aceitas"] and situacao_cnpj not in regras["situacoes_aceitas"] and not (situacao_cnpj == "ATIVO" and "ATIVA" in regras["situacoes_aceitas"]))
             ):
                 aprovado = False
-                motivo_recusa = (
-                    f"CNPJ do sacado com situação cadastral '{situacao_cnpj}'. "
-                    f"Situações aceitas: {', '.join(regras['situacoes_aceitas'])}."
-                )
-
-            # 4. Tipo de Recebível
+                motivo_recusa = f"CNPJ do sacado com situação cadastral '{situacao_cnpj}'. Situações aceitas: {', '.join(regras['situacoes_aceitas'])}."
             elif regras["tipo_recebivel_ativo"] and tipo_recebivel.upper() not in regras["tipos_aceitos"]:
                 aprovado = False
-                motivo_recusa = (
-                    f"Tipo de recebível '{tipo_recebivel}' não elegível. "
-                    f"Aceitos: {', '.join(regras['tipos_aceitos'])}."
-                )
-
-            # 5. Não Vencida
+                motivo_recusa = f"Tipo de recebível '{tipo_recebivel}' não elegível. Aceitos: {', '.join(regras['tipos_aceitos'])}."
             elif regras["nao_vencida_ativo"] and prazo_dias < 0:
                 aprovado = False
                 motivo_recusa = f"Título já vencido ({abs(prazo_dias)} dias em atraso)."
-
-            # 6. Valor Mínimo
             elif regras["valor_minimo_ativo"] and valor_face < regras["valor_minimo"]:
                 aprovado = False
-                motivo_recusa = (
-                    f"Valor de face ({_formatar_moeda(valor_face)}) abaixo do mínimo exigido "
-                    f"de {_formatar_moeda(regras['valor_minimo'])}."
-                )
-
-            # 7. Prazo Mínimo
+                motivo_recusa = f"Valor de face ({_formatar_moeda(valor_face)}) abaixo do mínimo exigido de {_formatar_moeda(regras['valor_minimo'])}."
             elif regras["prazo_minimo_ativo"] and prazo_dias < regras["prazo_minimo_dias"]:
                 aprovado = False
-                motivo_recusa = (
-                    f"Prazo de vencimento ({prazo_dias} dias) inferior ao prazo mínimo "
-                    f"de {regras['prazo_minimo_dias']} dias configurado no FIDC."
-                )
-
-            # 8. Prazo Máximo
+                motivo_recusa = f"Prazo de vencimento ({prazo_dias} dias) inferior ao prazo mínimo de {regras['prazo_minimo_dias']} dias configurado no FIDC."
             elif regras["prazo_maximo_ativo"] and prazo_dias > regras["prazo_maximo_dias"]:
                 aprovado = False
-                motivo_recusa = (
-                    f"Prazo de vencimento ({prazo_dias} dias) ultrapassa o limite máximo "
-                    f"de {regras['prazo_maximo_dias']} dias do FIDC."
-                )
-
-            # 9. Concentração Máxima por Sacado
+                motivo_recusa = f"Prazo de vencimento ({prazo_dias} dias) ultrapassa o limite máximo de {regras['prazo_maximo_dias']} dias do FIDC."
             elif regras["concentracao_sacado_ativo"] and (
-                CONCENTRACAO_HISTORICA.get(chave_concentracao_sacado, 0.0)
-                + concentracao_lote_sacado.get(chave_concentracao_sacado, 0.0)
-                + valor_face
+                CONCENTRACAO_HISTORICA.get(chave_concentracao_sacado, 0.0) + concentracao_lote_sacado.get(chave_concentracao_sacado, 0.0) + valor_face
             ) > teto_sacado:
                 aprovado = False
-                motivo_recusa = (
-                    f"Sacado ultrapassou o limite de concentração de {regras['percentual_concentracao_sacado']}% "
-                    f"da carteira ({_formatar_moeda(teto_sacado)})."
-                )
-
-            # 10. Concentração Máxima por Cedente
+                motivo_recusa = f"Sacado ultrapassou o limite de concentração de {regras['percentual_concentracao_sacado']}% da carteira ({_formatar_moeda(teto_sacado)})."
             elif regras["concentracao_cedente_ativo"] and (
-                CONCENTRACAO_CEDENTE_HISTORICA.get(cedente, 0.0)
-                + concentracao_lote_cedente.get(cedente, 0.0)
-                + valor_face
+                CONCENTRACAO_CEDENTE_HISTORICA.get(cedente, 0.0) + concentracao_lote_cedente.get(cedente, 0.0) + valor_face
             ) > teto_cedente:
                 aprovado = False
-                motivo_recusa = (
-                    f"Cedente ultrapassou o limite de concentração de {regras['percentual_concentracao_cedente']}% "
-                    f"da carteira ({_formatar_moeda(teto_cedente)})."
-                )
+                motivo_recusa = f"Cedente ultrapassou o limite de concentração de {regras['percentual_concentracao_cedente']}% da carteira ({_formatar_moeda(teto_cedente)})."
 
             valor_face_fmt = _formatar_moeda(valor_face)
 
@@ -563,65 +466,35 @@ def processar_arquivo_lote(file_storage):
 
                 total_liquido += valor_liq
                 total_aprovados += 1
-                concentracao_lote_sacado[chave_concentracao_sacado] = (
-                    concentracao_lote_sacado.get(chave_concentracao_sacado, 0.0) + valor_face
-                )
-                concentracao_lote_cedente[cedente] = (
-                    concentracao_lote_cedente.get(cedente, 0.0) + valor_face
-                )
-
+                concentracao_lote_sacado[chave_concentracao_sacado] = concentracao_lote_sacado.get(chave_concentracao_sacado, 0.0) + valor_face
+                concentracao_lote_cedente[cedente] = concentracao_lote_cedente.get(cedente, 0.0) + valor_face
                 chaves_vistas_no_lote.add(chave_duplicidade)
                 ESTOQUE_IDS.add(chave_duplicidade)
 
-                aprovados_para_banco.append(
-                    (chave_duplicidade, id_nota, sacado_exibicao, valor_face_fmt, "APROVADO", "")
-                )
+                aprovados_para_banco.append((chave_duplicidade, id_nota, sacado_exibicao, valor_face_fmt, "APROVADO", ""))
 
                 if len(itens_preview) < LIMITE_ITENS_RESPOSTA_JSON:
                     itens_preview.append({
-                        "id": id_nota,
-                        "id_documento": id_nota,
-                        "chave_duplicidade": chave_duplicidade,
-                        "sacado": sacado_exibicao,
-                        "valorFace": valor_face_fmt,
-                        "valor_face": valor_face_fmt,
-                        "prazo": f"{prazo_dias} dias",
-                        "desconto": f"{_formatar_moeda(desconto_valor)} ({(fator_desconto * 100):.2f}%)",
-                        "valorLiquido": _formatar_moeda(valor_liq),
-                        "status": "APROVADO",
-                        "motivoRecusa": None,
-                        "motivo": ""
+                        "id": id_nota, "sacado": sacado_exibicao, "valorFace": valor_face_fmt, "prazo": f"{prazo_dias} dias",
+                        "desconto": f"{_formatar_moeda(desconto_valor)} ({(fator_desconto * 100):.2f}%)", "valorLiquido": _formatar_moeda(valor_liq),
+                        "status": "APROVADO", "motivoRecusa": None
                     })
             else:
                 total_recusados += 1
                 if len(itens_preview) < LIMITE_ITENS_RESPOSTA_JSON:
                     itens_preview.append({
-                        "id": id_nota,
-                        "id_documento": id_nota,
-                        "chave_duplicidade": chave_duplicidade,
-                        "sacado": sacado_exibicao,
-                        "valorFace": valor_face_fmt,
-                        "valor_face": valor_face_fmt,
-                        "prazo": f"{prazo_dias} dias",
-                        "desconto": "-",
-                        "valorLiquido": "-",
-                        "status": "RECUSADO",
-                        "motivoRecusa": motivo_recusa,
-                        "motivo": motivo_recusa
+                        "id": id_nota, "sacado": sacado_exibicao, "valorFace": valor_face_fmt, "prazo": f"{prazo_dias} dias",
+                        "desconto": "-", "valorLiquido": "-", "status": "RECUSADO", "motivoRecusa": motivo_recusa
                     })
 
         resultado = {
             "resumo": {
-                "totalNotas": total_notas,
-                "totalBruto": _formatar_moeda(total_bruto),
-                "totalLiquido": _formatar_moeda(total_liquido),
-                "totalRecusadas": total_recusados
+                "totalNotas": total_notas, "totalBruto": _formatar_moeda(total_bruto),
+                "totalLiquido": _formatar_moeda(total_liquido), "totalRecusadas": total_recusados
             },
             "itens": itens_preview
         }
-
         return resultado, aprovados_para_banco, None
-
     except Exception as e:
         logging.error(f"EVENT=MOTOR_EXCECAO TIPO={type(e).__name__}")
         return None, [], "Erro ao processar o arquivo CSV. Verifique a formatação do arquivo."
