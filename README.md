@@ -1,4 +1,4 @@
-# Hackathon Kanastra - [Cúpula]
+# Hackathon Kanastra - Cúpula
 
 ## Pré-requisitos
 - Python 3.10 ou superior
