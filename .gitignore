@@ -1,22 +1,28 @@
-# Python
-__pycache__/
-*.pyc
-venv/
-.venv/
-
-# Segredos e dados (valem pontos no edital)
+# Segredos e variáveis de ambiente (15 pts - Logs e Credenciais)
 .env
-data/
-logs/
-*.csv
-*.log
+*.env
+.env.*
+!.env.example
 
-# Banco local gerado ao rodar (guarda notas processadas)
+# Ignora CSVs pesados (estoque_antecipe.csv), mas permite o lote de exemplo
+*.csv
+!exemplos/*.csv
+!exemplos/lote_exemplo.csv
+*.zip
+
+# Banco de dados local SQLite (gerado automaticamente em execução)
 *.db
 *.sqlite3
+backend/database.db
 
-# Exceção: o CSV de exemplo (dados fictícios) pode ir para o GitHub
-!exemplos/*.csv
+# Cache do Python e ambientes virtuais
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
 
-# Sistema
+# Logs locais e arquivos de sistema
+*.log
+logs/
 .DS_Store
