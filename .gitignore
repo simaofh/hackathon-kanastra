@@ -10,3 +10,13 @@ data/
 logs/
 *.csv
 *.log
+
+# Banco local gerado ao rodar (guarda notas processadas)
+*.db
+*.sqlite3
+
+# Exceção: o CSV de exemplo (dados fictícios) pode ir para o GitHub
+!exemplos/*.csv
+
+# Sistema
+.DS_Store
