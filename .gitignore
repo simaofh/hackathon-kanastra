@@ -4,16 +4,17 @@
 .env.*
 !.env.example
 
-# Ignora CSVs pesados (estoque_antecipe.csv), mas permite o lote de exemplo
+# CSVs pesados do evento (estoque_antecipe.csv etc.), mas permite o lote de exemplo
 *.csv
 !exemplos/*.csv
-!exemplos/lote_exemplo.csv
 *.zip
+
+# Pastas de dados locais (o estoque fica em backend/data/)
+data/
 
 # Banco de dados local SQLite (gerado automaticamente em execução)
 *.db
 *.sqlite3
-backend/database.db
 
 # Cache do Python e ambientes virtuais
 __pycache__/
